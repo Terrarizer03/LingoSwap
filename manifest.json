@@ -1,0 +1,6 @@
+{
+    "name": "AI Translator",
+    "description": "A Chrome extension that translates selected text using AI.",
+    "version": "1.0",
+    "manifest_version": 3
+}
