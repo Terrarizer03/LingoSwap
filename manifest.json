@@ -2,5 +2,14 @@
     "name": "AI Translator",
     "description": "A Chrome extension that translates selected text using AI.",
     "version": "1.0",
-    "manifest_version": 3
+    "manifest_version": 3,
+    "action": {
+        "default_popup": "Scripts/PopupUI/popup.html",
+        "default_icon": {
+            "16": "Images/AI Translator (16x).png",
+            "32": "Images/AI Translator (32x).png",
+            "48": "Images/AI Translator (48x).png",
+            "128": "Images/AI Translator (128x).png"
+        }
+    }
 }
