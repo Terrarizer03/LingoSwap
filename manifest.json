@@ -11,5 +11,18 @@
             "48": "Images/AI Translator (48x).png",
             "128": "Images/AI Translator (128x).png"
         }
-    }
+    },
+    "content_scripts": [
+        {
+            "js": ["Scripts/ContentScript/content.js"],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    "permissions": [
+        "activeTab",
+        "storage"
+    ],
+    "host_permissions": [
+        "https://*/*"
+    ]
 }
