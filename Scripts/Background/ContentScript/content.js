@@ -2,11 +2,14 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translate') {
         console.log('Received request to get text nodes');
-        testTranslation(); // Call the translation function
+        testTranslation();
         sendResponse({ success: true, message: 'Translation initiated' });
     }
 });
 
+// Translation state management
+let isTranslated = false;
+let originalTexts = [];
 
 function getFilteredTextElements(root) {
     const elements = [];
@@ -35,7 +38,7 @@ function getFilteredTextElements(root) {
                 elements.push(elem); // Add element if it contains valid text
             }      
         }
-    } // <-- This closing brace was missing!
+    }
 
     function shouldIncludeText(text) {
         // Skip CSS code (contains specific CSS syntax)
@@ -58,27 +61,41 @@ function getFilteredTextElements(root) {
     return elements;
 }
 
-const filteredElements = getFilteredTextElements(document.body);
-const textsToTranslate = filteredElements.map(elem => elem.textContent.trim());
+console.log(`Found ${getFilteredTextElements(document.body).length} text elements to process`);
 
-console.log(`Found ${filteredElements.length} elements to translate`);
-
-// Mock translation function
-// =========================
+// Mock translation function with error simulation
 async function mockTranslate(texts) {
-    // Replace with actual translation API call
-    return texts.map(text => {
-        // Mock translation logic
-        return `[EN]: ${text}`
-    });
+    // Prevent API call if already translated
+    if (isTranslated) {
+        console.log('Already translated - skipping API call to save tokens');
+        return [];
+    }
+    
+    try {
+        // Simulate potential network/API errors (uncomment to test error handling)
+        // if (Math.random() < 0.3) { // 30% chance of error
+        //     throw new Error('Translation API failed');
+        // }
+        
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Replace with actual translation API call
+        return texts.map(text => {
+            // Mock translation logic
+            return `[EN]: ${text}`;
+        });
+    } catch (error) {
+        console.error('Translation API error:', error);
+        throw error; // Re-throw to be handled by caller
+    }
 }
 
 // Replace text elements with translations function
-// =========================================
 function replaceWithTranslation(elements, translations) {
     if (elements.length !== translations.length) { 
         console.error(`Error: Elements count: ${elements.length} and translations count: ${translations.length} mismatch`);
-        return;
+        throw new Error('Element and translation count mismatch');
     }
 
     elements.forEach((elem, index) => {
@@ -90,25 +107,71 @@ function replaceWithTranslation(elements, translations) {
     console.log('Replaced elements with translations');
 }
 
+// Store original text before translation
+function storeOriginalTexts(elements) {
+    originalTexts = elements.map(elem => elem.textContent.trim());
+    console.log(`Stored ${originalTexts.length} original texts`);
+}
+
+// Enhanced translation function with error handling and state management
 async function testTranslation() {
     console.log('Starting translation test...');
 
-    // Get elements and texts
-    const elements = getFilteredTextElements(document.body);
-    const texts = elements.map(elem => elem.textContent.trim());
+    // Check if already translated
+    if (isTranslated) {
+        console.log('Page is already translated. Skipping translation.');
+        return;
+    }
 
-    console.log(`Processing ${texts.length} texts for translation...`);
+    try {
+        // Get elements and texts
+        const elements = getFilteredTextElements(document.body);
+        const texts = elements.map(elem => elem.textContent.trim());
 
-    // Mock translation
-    const translations = await mockTranslate(texts);
+        if (texts.length === 0) {
+            console.log('No texts found to translate');
+            return;
+        }
 
-    // Replace in DOM
-    replaceWithTranslation(elements, translations);
+        console.log(`Processing ${texts.length} texts for translation...`);
 
-    console.log('Translation test completed');
+        // Store original texts before translation
+        storeOriginalTexts(elements);
+
+        // Attempt translation
+        const translations = await mockTranslate(texts);
+
+        // Replace in DOM
+        replaceWithTranslation(elements, translations);
+
+        // Mark as translated
+        isTranslated = true;
+        console.log('Translation completed successfully');
+
+    } catch (error) {
+        console.error('Translation failed:', error.message);
+        
+        // If we had started storing original texts but translation failed,
+        // we should restore the page to its original state
+        if (originalTexts.length > 0) {
+            console.log('Attempting to restore original text due to translation failure...');
+            try {
+                restoreOriginalText();
+            } catch (restoreError) {
+                console.error('Failed to restore original text:', restoreError.message);
+            }
+        }
+        
+        // Reset translation state
+        isTranslated = false;
+        originalTexts = [];
+        
+        // You could also show a user notification here
+        // alert('Translation failed. Please try again.');
+    }
 }
 
-// Store original text for later rollback
+// Store original text for later rollback (kept for backward compatibility)
 let originalText = [];
 function storeOriginalText() {
     const elements = getFilteredTextElements(document.body);
@@ -117,15 +180,32 @@ function storeOriginalText() {
 }
 
 function restoreOriginalText() {
-    if (originalText.length === 0) {
+    const textsToRestore = originalTexts.length > 0 ? originalTexts : originalText;
+    
+    if (textsToRestore.length === 0) {
         console.error('No original text stored to restore.');
         return;
     }
 
-    const elements = getFilteredTextElements(document.body);
-    elements.forEach((elem, index) => {
-        if (originalText[index]) {
-            elem.textContent = originalText[index]; // Restore original text
+    try {
+        const elements = getFilteredTextElements(document.body);
+        
+        if (elements.length !== textsToRestore.length) {
+            console.warn(`Element count mismatch: ${elements.length} elements vs ${textsToRestore.length} stored texts`);
         }
-    });
+        
+        elements.forEach((elem, index) => {
+            if (textsToRestore[index]) {
+                elem.textContent = textsToRestore[index]; // Restore original text
+            }
+        });
+        
+        // Reset translation state
+        isTranslated = false;
+        console.log('Original text restored successfully');
+        
+    } catch (error) {
+        console.error('Error restoring original text:', error.message);
+        throw error;
+    }
 }
