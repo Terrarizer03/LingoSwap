@@ -22,8 +22,10 @@
         "extension_pages": "script-src 'self'; object-src 'self';"
     },
     "permissions": [
-        "activeTab",
-        "storage"
+    "activeTab",
+    "storage",
+    "tabs",
+    "scripting"
     ],
     "host_permissions": [
         "https://*/*"
