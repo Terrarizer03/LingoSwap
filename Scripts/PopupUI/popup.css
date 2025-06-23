@@ -4,7 +4,7 @@
 }
 
 html {
-    height: 400px;
+    height: 200px;
     width: 400px;    
 }
 
@@ -26,6 +26,15 @@ body {
     align-items: center;
 }
     
+#saveAPI {
+    padding: 7.5px;
+    background: #5eff78;
+    color: black;
+}
+
+#saveAPI:hover {
+    background: #44b657;
+}
 
 button {
     padding: 10px 20px;

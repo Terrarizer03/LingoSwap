@@ -6,6 +6,19 @@
         <div id="header">
             <h1 id="title">AI Translator</h1>
         </div>
+        <div id="inputSection">
+            <input type="password" id="inputAPI" placeholder="Input API Key here...">
+            <button id="saveAPI">Save API Key</button>
+        </div>
+
+        <label>Target Language:</label>
+            <select id="apiType">
+                <option value="openai">OpenAI-Compatible (Groq, OpenAI, etc.)</option>
+                <option value="gpt4all">GPT4All (Local)</option>
+                <option value="llamacpp">llama.cpp / KoboldCPP</option>
+                <option value="gemini">Gemini</option>
+            </select>
+        
 
         <button id="translateBtn">Translate</button>
 

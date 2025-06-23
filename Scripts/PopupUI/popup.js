@@ -10,11 +10,7 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
         alert('Please refresh the page and try again, or make sure you\'re on a regular website.');
     }
 });
-// // Check if DOM is already loaded
-// if (document.readyState === 'loading') {
-//   // DOM is still loading
-//   document.addEventListener('DOMContentLoaded', initScript);  
-// } else {
-//   // DOM is already loaded
-//   initScript();
-// }
+
+const apiKey = document.getElementById('inputAPI').value;
+
+console.log('API Key:', apiKey);
