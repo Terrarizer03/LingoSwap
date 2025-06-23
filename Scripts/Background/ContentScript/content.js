@@ -87,7 +87,7 @@ async function mockTranslate(texts) {
         // Replace with actual translation API call
         return texts.map(text => {
             // Mock translation logic
-            return `${translatedText}`;
+            return `[EN:] ${text}`;
         });
     } catch (error) {
         console.error('Translation API error:', error);
