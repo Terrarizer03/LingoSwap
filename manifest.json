@@ -22,10 +22,13 @@
         "extension_pages": "script-src 'self'; object-src 'self';"
     },
     "permissions": [
-    "activeTab",
-    "storage",
-    "tabs",
-    "scripting"
+        "activeTab",
+        "storage",
+        "tabs",
+        "scripting"
     ],
-    "host_permissions": ["<all_urls>"] 
+    "host_permissions": ["<all_urls>"],
+    "background": {
+        "service_worker": "Scripts/Background/background.js"
+    }
 }

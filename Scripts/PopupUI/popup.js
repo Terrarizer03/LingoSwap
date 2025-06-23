@@ -11,6 +11,14 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
     }
 });
 
-const apiKey = document.getElementById('inputAPI').value;
+document.getElementById('saveAPI').addEventListener('click', () => {
+         const apiKey = document.getElementById('inputAPI').value;
 
-console.log('API Key:', apiKey);
+         chrome.runtime.sendMessage({
+                action: 'saveAPIKey',
+                apiKey: apiKey
+         }, (response) => {
+                console.log('API Key saved:', response);
+         });
+});
+

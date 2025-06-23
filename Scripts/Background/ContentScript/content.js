@@ -61,6 +61,10 @@ function getFilteredTextElements(root) {
     return elements;
 }
 
+const filteredText = getFilteredTextElements(document.body);
+const translateText = filteredText.map(elem => elem.textContent.trim());
+
+console.log(translateText);
 console.log(`Found ${getFilteredTextElements(document.body).length} text elements to process`);
 
 // Mock translation function with error simulation
@@ -83,7 +87,7 @@ async function mockTranslate(texts) {
         // Replace with actual translation API call
         return texts.map(text => {
             // Mock translation logic
-            return `[EN]: ${text}`;
+            return `${translatedText}`;
         });
     } catch (error) {
         console.error('Translation API error:', error);
