@@ -1,3 +1,11 @@
+/*
+    Good prompts that are proven:
+    - Take this Array and translate each element to English. Keep in mind of context, 
+    some/a lot of the text in this Array are connected to each other. Once finished, 
+    return a translated Array and only the translated array, no comments, add-ons, 
+    or exceptions:
+*/
+
 function getFilteredTextElements(root) {
     const elements = [];
         
