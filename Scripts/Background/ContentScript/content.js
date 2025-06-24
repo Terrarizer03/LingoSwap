@@ -1,9 +1,38 @@
-//Listen for messages from popup
+//Listen for messages from popup via background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translate') {
         console.log('Received request to get text nodes');
-        testTranslation();
-        sendResponse({ success: true, message: 'Translation initiated' });
+
+        (async () => {
+            try {
+                await testTranslation(); // Wait for the full translation process
+                sendResponse({ success: true, message: 'Translation complete' });
+            } catch (err) {
+                sendResponse({ success: false, message: 'Translation failed', error: err.message });
+            }
+        })();
+
+        return true; // Tell Chrome this response is async
+    }
+    
+    // Listen for translated text from background script
+    if (message.action === 'updateDOM') {
+        console.log('Received translated text from background');
+        const translatedText = message.translatedText;
+        
+        try {
+            // Get the current elements (should match the ones we sent for translation)
+            const elements = getFilteredTextElements(document.body);
+            replaceWithTranslation(elements, translatedText);
+            isTranslated = true;
+            console.log('DOM updated with translations');
+            sendResponse({ success: true });
+        } catch (error) {
+            console.error('Error updating DOM:', error);
+            sendResponse({ success: false, error: error.message });
+        }
+        
+        return true; // For async response
     }
 });
 
@@ -59,37 +88,7 @@ function getFilteredTextElements(root) {
 
     move(root); // Start processing from the root element
     return elements;
-}
-
-console.log(`Found ${getFilteredTextElements(document.body).length} text elements to process`);
-
-// Mock translation function with error simulation
-async function mockTranslate(texts) {
-    // Prevent API call if already translated
-    if (isTranslated) {
-        console.log('Already translated - skipping API call to save tokens');
-        return [];
-    }
-    
-    try {
-        // Simulate potential network/API errors (uncomment to test error handling)
-        // if (Math.random() < 0.3) { // 30% chance of error
-        //     throw new Error('Translation API failed');
-        // }
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Replace with actual translation API call
-        return texts.map(text => {
-            // Mock translation logic
-            return `[EN]: ${text}`;
-        });
-    } catch (error) {
-        console.error('Translation API error:', error);
-        throw error; // Re-throw to be handled by caller
-    }
-}
+};
 
 // Replace text elements with translations function
 function replaceWithTranslation(elements, translations) {
@@ -138,15 +137,20 @@ async function testTranslation() {
         // Store original texts before translation
         storeOriginalTexts(elements);
 
-        // Attempt translation
-        const translations = await mockTranslate(texts);
-
-        // Replace in DOM
-        replaceWithTranslation(elements, translations);
-
-        // Mark as translated
-        isTranslated = true;
-        console.log('Translation completed successfully');
+        // Send text to background script for translation
+        chrome.runtime.sendMessage({
+            action: 'getTextToTranslate',
+            textArray: texts
+        }, (response) => {
+            if (response && response.success) {
+                console.log('Text elements sent for translation:', texts.length);
+            } else {
+                console.error('Failed to send text for translation:', response?.error);
+                // Reset state on failure
+                isTranslated = false;
+                originalTexts = [];
+            }
+        });
 
     } catch (error) {
         console.error('Translation failed:', error.message);
@@ -165,10 +169,7 @@ async function testTranslation() {
         // Reset translation state
         isTranslated = false;
         originalTexts = [];
-        
-        // You could also show a user notification here
-        // alert('Translation failed. Please try again.');
-    }
+    };
 }
 
 // Store original text for later rollback (kept for backward compatibility)
@@ -209,3 +210,8 @@ function restoreOriginalText() {
         throw error;
     }
 }
+
+// Debug: Log when content script loads
+console.log('Translation content script loaded');
+console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
+console.log(getFilteredTextElements(document.body).map(elem => elem.textContent.trim())); // Log first 10 text elements

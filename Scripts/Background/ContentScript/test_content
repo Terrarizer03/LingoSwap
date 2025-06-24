@@ -1,0 +1,301 @@
+/*
+    Good prompts that are proven:
+    - Take this Array and translate each element to English. Keep in mind of context, 
+    some/a lot of the text in this Array are connected to each other. Once finished, 
+    return a translated Array and only the translated array, no comments, add-ons, 
+    or exceptions:
+*/
+
+function getFilteredTextElements(root) {
+    const elements = [];
+        
+    function move(elem) {
+        // Skip script, iframe, and style tags
+        if (elem.tagName.toUpperCase() === 'SCRIPT' ||
+            elem.tagName.toUpperCase() === 'IFRAME' ||
+            elem.tagName.toUpperCase() === 'STYLE') {
+            return; // Skip script, iframe, and style elements
+        }
+
+        // If element is hidden, skip it
+        const computedStyle = getComputedStyle(elem);
+        if (computedStyle.display === 'none' ||
+            computedStyle.visibility === 'hidden') {
+            return; // Skip hidden elements
+        }
+
+        if (elem.children.length > 0) {
+            Array.from(elem.children).forEach(move); // Recursively process child elements
+        } else if (elem.textContent.trim() !== "") {
+            const text = elem.textContent.trim();
+
+            if (shouldIncludeText(text)) {
+                elements.push(elem); // Add element if it contains valid text
+            }      
+        }
+    }
+
+    function shouldIncludeText(text) {
+        // Skip CSS code (contains specific CSS syntax)
+        if (text.includes('{') && text.includes('}') &&
+            (text.includes('position:') || text.includes('font-size:') ||
+             text.includes('background-color:') || text.includes('padding:'))) {
+            return false; // Skip CSS-like text
+        }
+
+        // Skip very long CSS-like strings (over 100 chars with lots of CSS properties)
+        if (text.length > 100 &&
+            (text.includes('position:') || text.includes('background-color:'))) {
+            return false; // Skip long CSS-like text
+        }
+        
+        return true;
+    }
+
+    move(root); // Start processing from the root element
+    return elements;
+}
+
+// Replace text elements with translations function
+function replaceWithTranslation(elements, translations) {
+    if (elements.length !== translations.length) { 
+        console.error(`Error: Elements count: ${elements.length} and translations count: ${translations.length} mismatch`);
+        throw new Error('Element and translation count mismatch');
+    }
+
+    elements.forEach((elem, index) => {
+       if (translations[index]) {
+            elem.textContent = translations[index]; // Replace element text with translation
+       }
+    });
+
+    console.log('Replaced elements with translations');
+}
+
+// Store original text before translation
+function storeOriginalTexts(elements) {
+    originalTexts = elements.map(elem => elem.textContent.trim());
+    console.log(`Stored ${originalTexts.length} original texts`);
+}
+
+// Enhanced translation function with error handling and state management
+async function testTranslation() {
+    console.log('Starting translation test...');
+
+    try {
+        // Get elements and texts
+        const elements = getFilteredTextElements(document.body);
+        const texts = elements.map(elem => elem.textContent.trim());
+
+        if (texts.length === 0) {
+            console.log('No texts found to translate');
+            return;
+        }
+
+        console.log(`Processing ${texts.length} texts for translation...`);
+
+        // Store original texts before translation
+        storeOriginalTexts(elements);
+
+        // Attempt translation
+        const translations = [
+    "Set as Homepage",
+    "Add My Book City to Favorites",
+    "Reading History",
+    "Login",
+    "Register",
+    "My Book City",
+    "Search",
+    "Home",
+    "Permanent Bookshelf",
+    "Fantasy",
+    "High Fantasy",
+    "Wuxia (Martial Arts Fantasy)",
+    "Xianxia (Immortal Hero Fantasy)",
+    "Urban",
+    "Military",
+    "History",
+    "Gaming",
+    "Sports",
+    "Sci-Fi",
+    "Mystery",
+    "Supernatural",
+    "Other",
+    "Ancient",
+    "Xianxia",
+    "Modern",
+    "Romance",
+    "Fantasy",
+    "Suspense",
+    "Sci-Fi",
+    "Gaming",
+    "BL (Boy's Love)",
+    "GL (Girl's Love)",
+    "Fanfiction/ACG (Anime, Comics, Games)",
+    "Rankings",
+    "Library Rankings",
+    "Completed Novels",
+    "Reading History",
+    "My Book City",
+    "Fantasy Novels",
+    "Invest in the Reborn Empress, She Actually Calls Me Husband",
+    "Font",
+    "Default",
+    "Heiti (Black)",
+    "Kaiti (Regular Script)",
+    "Yahei (Microsoft Yahei)",
+    "Qiti (Qi's Script)",
+    "Songti (Song Typeface)",
+    "Color",
+    "Default",
+    "Dark Purple",
+    "Algae Green",
+    "Dark Gray",
+    "Cyan Gray",
+    "Maroon",
+    "Cyan Blue",
+    "Rose Brown",
+    "Yellowish Brown",
+    "Beige",
+    "Misty White",
+    "Size",
+    "Default",
+    "16px",
+    "18px",
+    "20px",
+    "22px",
+    "24px",
+    "26px",
+    "28px",
+    "30px",
+    "32px",
+    "Background",
+    "Default",
+    "Snow White",
+    "Pitch Black",
+    "Bright Yellow",
+    "Light Green",
+    "Grass Green",
+    "Pink",
+    "Dark Gray",
+    "Beige",
+    "Tea Color",
+    "Silver",
+    "Chapter 203: Copying the Strange Stone, Sword Marks...Gone?",
+    "Don't want to miss updates for \"Invest in the Reborn Empress, She Actually Calls Me Husband\"? Install My Book City's dedicated APP, and the author's updates will be pushed immediately!",
+    "Give Up",
+    "Download Now",
+    "Previous Chapter",
+    "←",
+    "Table of Contents",
+    "→",
+    "Next Page",
+    "Recently Read",
+    "Recommend This Book",
+    "It was noon, and a continuous light rain began to fall.",
+    "Around the strange stone, it was still the scene of a waterfall and clear spring, but now with lush green grass, clear bird songs, and a serene pool under the bright moon.",
+    "And an extra cave.",
+    "Whenever someone gains insight from the strange stone, the accumulated essence left on it forms various wondrous sights.",
+    "After Li Mo gained insight, a pit appeared in the mountain wall behind the waterfall.",
+    "“It really does look a bit like the Water Curtain Cave...”",
+    "He bypassed the strange stone and entered the cave entrance.",
+    "A sense of familiarity rose in young Li’s heart, perhaps because it somewhat resembled the cave he dug near the Autumn Water Pavilion, or because it matched his imagination of the birthplace of a certain Great Sage.",
+    "Sitting cross-legged inside the cave, his consciousness sank into the World Seed.",
+    "Humming—",
+    "Inside the World Seed, the Calamity Meteorite Hammer gently vibrated.",
+    "Hammer-Treasure still wanted to hammer something.",
+    "“Be good, this stone can only face one side down for now.”",
+    "“When the stone can face both sides down, I’ll definitely let you hammer it again.”",
+    "Li Mo comforted it seriously.",
+    "Feeling his sincerity, Hammer-Treasure believed him and obediently went to play with the Scarlet Sky Sword.",
+    "Taking out his writing tools and a pile of rare treasures used to supplement his intent-soul, Li Mo took a deep breath.",
+    "“Last time I copied the strange stone, I didn’t even get a tenth of it.”",
+    "“Now I’ve observed two apertures of the spirit, my intent-soul has greatly increased, and my vital energy is abundant.”",
+    "He swallowed a five-patterned Void-Filling Pill.",
+    "Li Mo spread the Green Pulse Jade Slip on the bluestone, then poured his spiritual power into the brush tip, raising it and letting it fall.",
+    "To paint a stone, you can’t just paint a stone alone.",
+    "You have to paint its experience of countless years of wind, countless years of rain...",
+    "Countless birds and beasts have passed by its side, and it has witnessed countless sunrises and sunsets.",
+    "It might even have been hit by a hammer...",
+    "Li Mo’s brush strokes flowed like dragons and snakes.",
+    "If there was even a slight mistake in the painting, he would pick up a new sheet of paper and start over.",
+    "Just as he was absorbed in his painting.",
+    "Thud—",
+    "Outside the Water Curtain Cave, a sudden footstep sounded.",
+    "Li Mo looked up.",
+    "Then he saw a woman with ear-length short hair, wearing the simplest Horizontal Cloud Sword City disciple robe, and a pair of round crystal glasses on her face, walking over.",
+    "Due to the various artistic conceptions within the wondrous scene, she seemed not to have noticed an extra cave behind the waterfall, nor an extra person inside the cave.",
+    "She skillfully sat down and began to diligently comprehend the strange stone.",
+    "“Senior Xu’s disciple?”",
+    "Senior Xu was that white-haired young man’s dharma body.",
+    "When he came up, he had mentioned his disciple, who was also the senior sister of Horizontal Cloud Sword City.",
+    "Many famous martial arts in Sword City today were conceived by her; normally, besides comprehending the strange stone, she would just practice swordplay and rarely left her abode.",
+    "“I smell the scent of a tech geek.”",
+    "Li Mo shrugged and continued with his own work.",
+    "Both parties did not disturb each other.",
+    "Another half an hour later.",
+    "Looking at the painting in front of him, which already bore an eight-tenths resemblance to the strange stone outside, Li Mo shook his head.",
+    "“This is the best one I’ve done today.”",
+    "“It seems my current intent-soul strength and painting technique are still not enough to paint the 'Supreme Form'...”",
+    "Young Li was not discouraged.",
+    "Senior Brother Ouyang has been immersed in the art of painting for over ten years, and even he has only managed to paint up to the 'Supreme Form' at most.",
+    "He was already progressing very quickly.",
+    "If he continues to practice copying, he will eventually succeed, and that future won't be too far away.",
+    "“The ice block’s lecture is almost over too.”",
+    "Glancing at the sky, Li Mo stood up, ready to leave.",
+    "But as soon as he reached the cave entrance.",
+    "Hm?",
+    "He saw the woman wearing round crystal glasses, her face pale, muttering something under her breath.",
+    "Heavenly Fate Divine Eye Activated!",
+    "Name: Wei Zhaoliu",
+    "Age: 26",
+    "Root Bone: Eight-Directional Sword Physique",
+    "Realm: Observing Spirit Seven Apertures",
+    "Heavenly Fate: Purple",
+    "Assessment: Having contemplated the Sword Mark Strange Stone for decades, she reveres the sword marks as a divine miracle, believing all her martial arts originate from them. She aims to surpass them one day.",
+    "Recent Encounter: After emerging from seclusion, she revisited the strange stone but could no longer perceive the sword marks.",
+    "Add to Bookmarks for easy reading",
+    "Previous Chapter",
+    "←",
+    "Table of Contents",
+    "→",
+    "Next Page",
+    "Recently Read",
+    "Popular Recommendations",
+    "Pregnant and Framed, Mrs. Zhan Returns with Her Child and Goes Wild",
+    "Top Villain",
+    "That Scumbag Has Actually Become a Peerless Good Man",
+    "Temporary Husband, Mysterious Play",
+    "After Madam's Miscarriage and Divorce, the Maniacal CEO Panicked",
+    "After Being Tortured and Dying in Her Previous Life, She Went Wild in the Capital",
+    "Burning Bone Allure",
+    "Sang Yuzhou's Love",
+    "Saleswoman Awakens Abilities, I Rule the Apocalypse",
+    "Courtyard House: Trapping Yi Zhonghai",
+    "General's Daughter: The Frail Young Master's Schemes Can't Be Hidden",
+    "After Transmigrating Back, I Led Huaxia to Become Number One in the World",
+    "All novels on this site are reprinted works. All chapters are uploaded by netizens. Reposting to this site is solely for the purpose of promoting the book and allowing more readers to enjoy it."
+];
+
+        // Replace in DOM
+        replaceWithTranslation(elements, translations);
+
+        // Mark as translated
+        isTranslated = true;
+        console.log('Translation completed successfully');
+
+    } catch (error) {
+        console.error('Translation failed:', error.message);
+        
+        // If we had started storing original texts but translation failed,
+        // we should restore the page to its original state
+        if (originalTexts.length > 0) {
+            console.log('Attempting to restore original text due to translation failure...');
+            try {
+                restoreOriginalText();
+            } catch (restoreError) {
+                console.error('Failed to restore original text:', restoreError.message);
+            }
+        }
+    }
+}
