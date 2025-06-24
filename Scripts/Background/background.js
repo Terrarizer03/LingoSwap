@@ -118,9 +118,9 @@ async function performTranslation(textArray, targetLang, apiKey) {
     // Create a batch translation prompt
     const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
     
-    const prompt = `Translate the following text to ${targetLang}. Return only the translated text in the same format (numbered list), without any additional explanation or commentary:
-
-${textList}`;
+    const prompt = `Translate the following text to ${targetLang}. Keep in mind of context, some / a lot of the text in this list are connected to each other. Once finished, return only the translated text in the same format (numbered list), without any additional explanation or commentary:
+    
+    ${textList}`;
 
     const requestBody = {
         contents: [{
