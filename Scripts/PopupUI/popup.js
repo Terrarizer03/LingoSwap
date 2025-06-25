@@ -9,8 +9,10 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
     isTranslating = true;
 
     const translateBtn = document.getElementById('translateBtn');
+    const screenMsg = document.getElementById('screenMsg');
     translateBtn.disabled = true;
     translateBtn.innerText = "Translating...";
+    screenMsg.innerText = "Translating... Please wait.";
 
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -30,6 +32,7 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
             isTranslating = false;
             translateBtn.disabled = false;
             translateBtn.innerText = "Translate";
+            screenMsg.innerText = "";
         }, 15000);
     } catch (error) {
         console.error('Error:', error);
@@ -38,6 +41,7 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
         isTranslating = false;
         translateBtn.disabled = false;
         translateBtn.innerText = "Translate";
+        screenMsg.innerText = "Translation failed. Please try again.";
     }
 });
 

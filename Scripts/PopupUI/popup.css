@@ -19,13 +19,24 @@ body {
     margin-bottom: 10px;
 }
 
+#screenMsg {
+    background-color: rgb(129, 129, 129);
+}
+
 #title {
     display: flex;
     justify-content: center;
     text-align: center;
     align-items: center;
 }
-    
+
+#inputSection {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
 #saveAPI {
     padding: 7.5px;
     background: #5eff78;
@@ -36,8 +47,20 @@ body {
     background: #44b657;
 }
 
+#languageSelect {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+#targetLang {
+    margin: 5px;
+}
+
 button {
-    padding: 10px 20px;
+    margin: 5px;
+    padding: 10px 15px;
     background: #007cba;
     color: white;
     border: none;
