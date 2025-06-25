@@ -166,7 +166,7 @@ async function performTranslation(textArray, targetLang, apiKey) {
 
 // Translate a single chunk with enhanced context
 async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, totalChunks, fullTextArray) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     
     // Create numbered list for this chunk
     const textList = chunk.map((text, index) => `${index + 1}. ${text}`).join('\n');
@@ -182,7 +182,7 @@ async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, 
             }]
         }],
         generationConfig: {
-            temperature: 0.1,
+            temperature: 0.5,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
@@ -258,7 +258,7 @@ function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextAr
 
 // Fallback for small arrays (original method)
 async function translateSingleChunk(textArray, targetLang, apiKey, chunkIndex = 0) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
     
@@ -273,7 +273,7 @@ async function translateSingleChunk(textArray, targetLang, apiKey, chunkIndex = 
             }]
         }],
         generationConfig: {
-            temperature: 0.1,
+            temperature: 0.5,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
