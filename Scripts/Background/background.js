@@ -182,7 +182,7 @@ async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, 
             }]
         }],
         generationConfig: {
-            temperature: 0.5,
+            temperature: 0.2,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
@@ -274,7 +274,7 @@ async function translateSingleChunk(textArray, targetLang, apiKey, chunkIndex = 
             }]
         }],
         generationConfig: {
-            temperature: 0.5,
+            temperature: 0.2,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
