@@ -109,18 +109,71 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-// Translation function using Gemini API
+// Enhanced translation function with chunking support
 async function performTranslation(textArray, targetLang, apiKey) {
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
+    const CHUNK_SIZE = 115;
+    const CONCURRENT_REQUESTS = 2;
+    
+    // If array is small enough, use original method
+    if (textArray.length <= CHUNK_SIZE) {
+        return await translateSingleChunk(textArray, targetLang, apiKey, 0);
+    }
+    
+    // Split into chunks
+    const chunks = chunkArray(textArray, CHUNK_SIZE);
+    console.log(`Split into ${chunks.length} chunks of max ${CHUNK_SIZE} items each`);
+    
+    // Process chunks in batches with controlled concurrency
+    const allTranslatedChunks = [];
+    
+    for (let i = 0; i < chunks.length; i += CONCURRENT_REQUESTS) {
+        const batchChunks = chunks.slice(i, i + CONCURRENT_REQUESTS);
+        console.log(`Processing batch ${Math.floor(i / CONCURRENT_REQUESTS) + 1}: chunks ${i + 1}-${Math.min(i + CONCURRENT_REQUESTS, chunks.length)}`);
+        
+        // Create promises for concurrent translation
+        const batchPromises = batchChunks.map((chunk, batchIndex) => {
+            const globalChunkIndex = i + batchIndex;
+            return translateChunkWithContext(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray);
+        });
+        
+        try {
+            // Wait for current batch to complete
+            const batchResults = await Promise.all(batchPromises);
+            allTranslatedChunks.push(...batchResults);
+            
+            // Add delay between batches to avoid rate limiting
+            if (i + CONCURRENT_REQUESTS < chunks.length) {
+                await delay(1000); // 1 second delay between batches
+            }
+        } catch (error) {
+            console.error(`Error in batch ${Math.floor(i / CONCURRENT_REQUESTS) + 1}:`, error);
+            // Continue with remaining batches, mark failed chunks
+            const failedResults = batchChunks.map((chunk, batchIndex) => 
+                chunk.map((text, textIndex) => `[Translation Error - Batch ${i + batchIndex + 1}] ${text}`)
+            );
+            allTranslatedChunks.push(...failedResults);
+        }
+    }
+    
+    // Flatten all chunks back into single array
+    const finalTranslatedArray = allTranslatedChunks.flat();
+    console.log(`Translation complete: ${finalTranslatedArray.length} items translated`);
+    
+    return finalTranslatedArray;
+}
+
+// Translate a single chunk with enhanced context
+async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, totalChunks, fullTextArray) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     
-    // Create a batch translation prompt
-    const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
+    // Create numbered list for this chunk
+    const textList = chunk.map((text, index) => `${index + 1}. ${text}`).join('\n');
     
-    const prompt = `Translate the following text to ${targetLang}. Keep in mind of context, some / a lot of the text in this list are connected to each other. Once finished, return only the translated text in the same format (numbered list), without any additional explanation or commentary:
-    
-    ${textList}`;
+    // Enhanced context-aware prompt
+    const contextPrompt = buildContextualPrompt(chunk, chunkIndex, totalChunks, fullTextArray, targetLang);
+    const prompt = `${contextPrompt}\n\n${textList}`;
 
     const requestBody = {
         contents: [{
@@ -129,7 +182,7 @@ async function performTranslation(textArray, targetLang, apiKey) {
             }]
         }],
         generationConfig: {
-            temperature: 0.1, // Low temperature for consistent translations
+            temperature: 0.1,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
@@ -157,36 +210,141 @@ async function performTranslation(textArray, targetLang, apiKey) {
         }
 
         const translatedText = data.candidates[0].content.parts[0].text;
+        const translatedArray = parseNumberedResponse(translatedText, chunk.length);
         
-        // Parse the numbered list response back into an array
-        const translatedArray = parseNumberedResponse(translatedText, textArray.length);
-        
+        console.log(`Chunk ${chunkIndex + 1}/${totalChunks} translated successfully`);
         return translatedArray;
         
     } catch (error) {
+        console.error(`Gemini API error for chunk ${chunkIndex + 1}:`, error);
+        return chunk.map((text, index) => `[Translation Error - Chunk ${chunkIndex + 1}, Item ${index + 1}] ${text}`);
+    }
+}
+
+// Build contextual prompt to help maintain coherence across chunks
+function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang) {
+    let contextPrompt = `Translate the following text to ${targetLang}. `;
+    
+    if (totalChunks > 1) {
+        contextPrompt += `This is part ${chunkIndex + 1} of ${totalChunks} from a web page. `;
+        
+        // Add context from previous chunk (last few items)
+        if (chunkIndex > 0) {
+            const prevChunkStart = Math.max(0, chunkIndex * 115 - 3);
+            const prevChunkEnd = chunkIndex * 115;
+            const contextItems = fullTextArray.slice(prevChunkStart, prevChunkEnd);
+            
+            if (contextItems.length > 0) {
+                contextPrompt += `For context, the previous section ended with: "${contextItems.slice(-2).join(' ')}" `;
+            }
+        }
+        
+        // Add context from next chunk (first few items)
+        if (chunkIndex < totalChunks - 1) {
+            const nextChunkStart = (chunkIndex + 1) * 115;
+            const nextChunkEnd = Math.min(fullTextArray.length, nextChunkStart + 3);
+            const nextItems = fullTextArray.slice(nextChunkStart, nextChunkEnd);
+            
+            if (nextItems.length > 0) {
+                contextPrompt += `The next section will begin with: "${nextItems.slice(0, 2).join(' ')}" `;
+            }
+        }
+    }
+    
+    contextPrompt += `Maintain consistency in terminology and style. Return only the translated text in numbered format (1. 2. 3. etc.), without any additional explanation:`;
+    
+    return contextPrompt;
+}
+
+// Fallback for small arrays (original method)
+async function translateSingleChunk(textArray, targetLang, apiKey, chunkIndex = 0) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+
+    const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
+    
+    const prompt = `Translate the following text to ${targetLang}. Keep in mind of context, some / a lot of the text in this list are connected to each other. Once finished, return only the translated text in the same format (numbered list), without any additional explanation or commentary:
+    
+    ${textList}`;
+
+    const requestBody = {
+        contents: [{
+            parts: [{
+                text: prompt
+            }]
+        }],
+        generationConfig: {
+            temperature: 0.1,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+        }
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error('Invalid response format from Gemini API');
+        }
+
+        const translatedText = data.candidates[0].content.parts[0].text;
+        return parseNumberedResponse(translatedText, textArray.length);
+        
+    } catch (error) {
         console.error('Gemini API error:', error);
-        // Fallback: return original text with error indicator
+        
         return textArray.map(text => `[Translation Error] ${text}`);
     }
 }
 
-// Helper function to parse the numbered response from Gemini
+// Utility functions
+function chunkArray(array, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+        chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Enhanced parsing with better error handling
 function parseNumberedResponse(response, expectedLength) {
     const lines = response.trim().split('\n');
     const translatedArray = [];
     
     for (let i = 0; i < expectedLength; i++) {
-        // Look for lines that start with the number (i+1)
         const numberPrefix = `${i + 1}.`;
         const line = lines.find(l => l.trim().startsWith(numberPrefix));
         
         if (line) {
-            // Remove the number prefix and trim
             const translated = line.substring(line.indexOf('.') + 1).trim();
             translatedArray.push(translated);
         } else {
-            // Fallback if parsing fails
-            translatedArray.push(`[Parse Error] Item ${i + 1}`);
+            // Better fallback - try to find any line that might correspond
+            const fallbackLine = lines[i];
+            if (fallbackLine && fallbackLine.trim()) {
+                // Remove any number prefix if it exists
+                const cleaned = fallbackLine.replace(/^\d+\.\s*/, '').trim();
+                translatedArray.push(cleaned || `[Parse Error] Item ${i + 1}`);
+            } else {
+                translatedArray.push(`[Parse Error] Item ${i + 1}`);
+            }
         }
     }
     
