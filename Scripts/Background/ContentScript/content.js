@@ -48,25 +48,29 @@ function getFilteredTextElements(root) {
         if (elem.tagName.toUpperCase() === 'SCRIPT' ||
             elem.tagName.toUpperCase() === 'IFRAME' ||
             elem.tagName.toUpperCase() === 'STYLE') {
-            return; // Skip script, iframe, and style elements
+            return;
         }
 
         // If element is hidden, skip it
         const computedStyle = getComputedStyle(elem);
         if (computedStyle.display === 'none' ||
             computedStyle.visibility === 'hidden') {
-            return; // Skip hidden elements
+            return;
         }
 
-        if (elem.children.length > 0) {
-            Array.from(elem.children).forEach(move); // Recursively process child elements
-        } else if (elem.textContent.trim() !== "") {
-            const text = elem.textContent.trim();
-
-            if (shouldIncludeText(text)) {
-                elements.push(elem); // Add element if it contains valid text
-            }      
-        }
+        // Process all child nodes (including text nodes)
+        Array.from(elem.childNodes).forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                // Handle text nodes directly
+                const text = node.textContent.trim();
+                if (text !== "" && shouldIncludeText(text)) {
+                    elements.push(node);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                // Recursively process element nodes
+                move(node);
+            }
+        });
     }
 
     function shouldIncludeText(text) {
@@ -74,21 +78,21 @@ function getFilteredTextElements(root) {
         if (text.includes('{') && text.includes('}') &&
             (text.includes('position:') || text.includes('font-size:') ||
              text.includes('background-color:') || text.includes('padding:'))) {
-            return false; // Skip CSS-like text
+            return false;
         }
 
         // Skip very long CSS-like strings (over 100 chars with lots of CSS properties)
         if (text.length > 100 &&
             (text.includes('position:') || text.includes('background-color:'))) {
-            return false; // Skip long CSS-like text
+            return false;
         }
         
         return true;
     }
 
-    move(root); // Start processing from the root element
+    move(root);
     return elements;
-};
+}
 
 // Replace text elements with translations function
 function replaceWithTranslation(elements, translations) {
@@ -99,7 +103,12 @@ function replaceWithTranslation(elements, translations) {
 
     elements.forEach((elem, index) => {
        if (translations[index]) {
-            elem.textContent = translations[index]; // Replace element text with translation
+            // Handle both text nodes and element nodes
+            if (elem.nodeType === Node.TEXT_NODE) {
+                elem.textContent = translations[index];
+            } else {
+                elem.textContent = translations[index];
+            }
        }
     });
 
@@ -174,10 +183,16 @@ async function testTranslation() {
 
 // Store original text for later rollback (kept for backward compatibility)
 let originalText = [];
-function storeOriginalText() {
-    const elements = getFilteredTextElements(document.body);
-    originalText = elements.map(elem => elem.textContent.trim());
-    console.log(`${originalText.length} lines of original text stored.`);
+function storeOriginalTexts(elements) {
+    originalTexts = elements.map(elem => {
+        // Handle both text nodes and element nodes
+        if (elem.nodeType === Node.TEXT_NODE) {
+            return elem.textContent.trim();
+        } else {
+            return elem.textContent.trim();
+        }
+    });
+    console.log(`Stored ${originalTexts.length} original texts`);
 }
 
 function restoreOriginalText() {

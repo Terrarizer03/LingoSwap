@@ -113,7 +113,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function performTranslation(textArray, targetLang, apiKey) {
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
-    const CHUNK_SIZE = 115;
+    const CHUNK_SIZE = 80;
     const CONCURRENT_REQUESTS = 2;
     
     // If array is small enough, use original method
@@ -223,6 +223,7 @@ async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, 
 
 // Build contextual prompt to help maintain coherence across chunks
 function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang) {
+    const CHUNK_SIZE = 80; // Add this line
     let contextPrompt = `Translate the following text to ${targetLang}. `;
     
     if (totalChunks > 1) {
@@ -230,8 +231,8 @@ function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextAr
         
         // Add context from previous chunk (last few items)
         if (chunkIndex > 0) {
-            const prevChunkStart = Math.max(0, chunkIndex * 115 - 3);
-            const prevChunkEnd = chunkIndex * 115;
+            const prevChunkStart = Math.max(0, chunkIndex * CHUNK_SIZE - 3);
+            const prevChunkEnd = chunkIndex * CHUNK_SIZE;
             const contextItems = fullTextArray.slice(prevChunkStart, prevChunkEnd);
             
             if (contextItems.length > 0) {
@@ -241,7 +242,7 @@ function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextAr
         
         // Add context from next chunk (first few items)
         if (chunkIndex < totalChunks - 1) {
-            const nextChunkStart = (chunkIndex + 1) * 115;
+            const nextChunkStart = (chunkIndex + 1) * CHUNK_SIZE;
             const nextChunkEnd = Math.min(fullTextArray.length, nextChunkStart + 3);
             const nextItems = fullTextArray.slice(nextChunkStart, nextChunkEnd);
             
