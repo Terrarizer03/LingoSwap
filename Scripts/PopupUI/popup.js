@@ -1,4 +1,33 @@
+/* ---------------------- Translate Logic ---------------------- */
+
+// variables -------------
 let isTranslating = false;
+const translateBtn = document.getElementById('translateBtn');
+
+// Add message listener to handle translation completion
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'translationComplete') {
+        // Reset the UI when translation is complete
+        resetTranslationUI(true);
+        console.log('Translation completed:', message);
+    }
+});
+
+function resetTranslationUI(showSuccess = false) {
+    if (showSuccess) {
+        isTranslating = false;
+        translateBtn.textContent = "Translation completed successfully!";
+
+        setTimeout(() => {
+            translateBtn.disabled = false;
+            translateBtn.textContent = "Translate";
+        }, 1000);
+    } else {
+        isTranslating = false;
+        translateBtn.disabled = false;
+        translateBtn.textContent = "Translate";
+    }
+}
 
 document.getElementById('translateBtn').addEventListener('click', async () => {
     if (isTranslating) {
@@ -8,11 +37,8 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
 
     isTranslating = true;
 
-    const translateBtn = document.getElementById('translateBtn');
-    const screenMsg = document.getElementById('screenMsg');
     translateBtn.disabled = true;
-    translateBtn.innerText = "Translating...";
-    screenMsg.innerText = "Translating... Please wait.";
+    translateBtn.textContent = "Translating...";
 
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -24,24 +50,19 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
             targetLang: targetLang
         }, (response) => {
             console.log('Translation initiated:', response);
-            // Optionally reset here if you're sure translation ends quickly
         });
 
-        // Wait ~15s as fallback in case no response is returned
+        // Keep the fallback timeout as a safety net
         setTimeout(() => {
-            isTranslating = false;
-            translateBtn.disabled = false;
-            translateBtn.innerText = "Translate";
-            screenMsg.innerText = "";
-        }, 15000);
+            if (isTranslating) { // Only reset if still translating (not already reset by message)
+                resetTranslationUI(false);
+                console.log('Translation reset by timeout fallback');
+            }
+        }, 45000);
     } catch (error) {
         console.error('Error:', error);
         alert('Please refresh the page and try again.');
-
-        isTranslating = false;
-        translateBtn.disabled = false;
-        translateBtn.innerText = "Translate";
-        screenMsg.innerText = "Translation failed. Please try again.";
+        resetTranslationUI(false);
     }
 });
 

@@ -25,6 +25,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const elements = getFilteredTextElements(document.body);
             replaceWithTranslation(elements, translatedText);
             isTranslated = true;
+            chrome.runtime.sendMessage({
+                action: 'translationComplete'
+            }); // Notify popup that translation is complete
             console.log('DOM updated with translations');
             sendResponse({ success: true });
         } catch (error) {

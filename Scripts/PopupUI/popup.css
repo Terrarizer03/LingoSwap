@@ -19,10 +19,6 @@ body {
     margin-bottom: 10px;
 }
 
-#screenMsg {
-    background-color: rgb(129, 129, 129);
-}
-
 #title {
     display: flex;
     justify-content: center;
