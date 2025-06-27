@@ -113,7 +113,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function performTranslation(textArray, targetLang, apiKey) {
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
-    const CHUNK_SIZE = 80;
+    const CHUNK_SIZE = 100;
     const CONCURRENT_REQUESTS = 2;
     
     // If array is small enough, use original method
@@ -223,7 +223,7 @@ async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, 
 
 // Build contextual prompt to help maintain coherence across chunks
 function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang) {
-    const CHUNK_SIZE = 80; // Add this line
+    const CHUNK_SIZE = 100;
     let contextPrompt = `Translate the following text to ${targetLang}. `;
     
     if (totalChunks > 1) {
