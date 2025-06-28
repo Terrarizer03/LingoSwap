@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function resetTranslationUI(showSuccess = false) {
     if (showSuccess) {
         isTranslating = false;
-        translateBtn.textContent = "Translation completed successfully!";
+        translateBtn.textContent = "Done!";
 
         setTimeout(() => {
             translateBtn.disabled = false;
@@ -36,7 +36,6 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
     }
 
     isTranslating = true;
-
     translateBtn.disabled = true;
     translateBtn.textContent = "Translating...";
 

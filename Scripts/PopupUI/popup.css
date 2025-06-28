@@ -30,7 +30,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 #saveAPI {
@@ -56,7 +56,7 @@ body {
 
 button {
     margin: 5px;
-    padding: 10px 15px;
+    padding: 8.5px 15px;
     background: #007cba;
     color: white;
     border: none;

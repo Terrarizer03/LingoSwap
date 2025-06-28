@@ -14,7 +14,7 @@
     },
     "content_scripts": [
         {
-            "js": ["Scripts/Background/ContentScript/content.js"],
+            "js": ["Scripts/Background/ContentScript/textTranslation.js"],
             "matches": ["<all_urls>"]
         }
     ],
@@ -29,6 +29,6 @@
     ],
     "host_permissions": ["<all_urls>"],
     "background": {
-        "service_worker": "Scripts/Background/background.js"
+        "service_worker": "Scripts/Background/apiCalls.js"
     }
 }
