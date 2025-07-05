@@ -4,6 +4,15 @@
 let isTranslating = false;
 const translateBtn = document.getElementById('translateBtn');
 
+// On DOM loaded
+document.addEventListener("DOMContentLoaded", () => {
+  chrome.storage.local.get(["targetLang"], (result) => {
+    if (result.targetLang) {
+      document.getElementById('targetLang').value = result.targetLang;
+    }
+  });
+});
+
 // Add message listener to handle translation completion
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translationComplete') {
@@ -29,6 +38,12 @@ function resetTranslationUI(showSuccess = false) {
     }
 }
 
+document.getElementById('targetLang').addEventListener('change', (event) => {
+    const targetLang = event.target.value;
+
+    chrome.storage.local.set({ targetLang: targetLang });
+});
+
 document.getElementById('translateBtn').addEventListener('click', async () => {
     if (isTranslating) {
         alert("Translation is already in progress. Please wait...");
@@ -41,12 +56,10 @@ document.getElementById('translateBtn').addEventListener('click', async () => {
 
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const targetLang = document.getElementById('targetLang').value;
 
         chrome.runtime.sendMessage({
             action: 'translate',
             tabId: tab.id,
-            targetLang: targetLang
         }, (response) => {
             console.log('Translation initiated:', response);
         });

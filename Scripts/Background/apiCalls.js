@@ -22,7 +22,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Listen for translate request from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translate') {
-        const { tabId, targetLang } = message;
+        const { tabId } = message;
+        const targetLang = chrome.storage.local.get(['targetLang'])
 
         console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
 
@@ -58,9 +59,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log(`Received ${textArray.length} texts to translate from tab ${tabId}`);
 
         // Get API key and translation request details
-        chrome.storage.local.get(['apiKey', 'currentTranslationRequest'], async (result) => {
+        chrome.storage.local.get(['apiKey', 'currentTranslationRequest', 'targetLang'], async (result) => {
             const apiKey = result.apiKey || '';
             const translationRequest = result.currentTranslationRequest;
+            const targetLang = result.targetLang || 'English'; // Default to English if not set
             
             if (!apiKey) {
                 sendResponse({ 
@@ -80,7 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             try {
                 // Perform translation
-                const translatedArray = await performTranslation(textArray, translationRequest.targetLang, apiKey);
+                const translatedArray = await performTranslation(textArray, targetLang, apiKey);
                 
                 // Send results back to the content script
                 chrome.tabs.sendMessage(tabId, {
@@ -182,7 +184,7 @@ async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, 
             }]
         }],
         generationConfig: {
-            temperature: 0.2,
+            temperature: 0.1,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
@@ -274,7 +276,7 @@ async function translateSingleChunk(textArray, targetLang, apiKey, chunkIndex = 
             }]
         }],
         generationConfig: {
-            temperature: 0.2,
+            temperature: 0.1,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 2048,
