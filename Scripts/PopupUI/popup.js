@@ -8,7 +8,7 @@ const translateBtn = document.getElementById('translateBtn');
 document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.local.get(["targetLang"], (result) => {
     if (result.targetLang) {
-      document.getElementById('targetLang').value = result.targetLang;
+        document.getElementById('targetLang').value = result.targetLang;
     }
   });
 });
@@ -22,6 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
+// Reset translation UI
 function resetTranslationUI(showSuccess = false) {
     if (showSuccess) {
         isTranslating = false;
@@ -38,6 +39,7 @@ function resetTranslationUI(showSuccess = false) {
     }
 }
 
+// Event listeners -------------
 document.getElementById('targetLang').addEventListener('change', (event) => {
     const targetLang = event.target.value;
 

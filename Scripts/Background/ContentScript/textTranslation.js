@@ -118,12 +118,6 @@ function replaceWithTranslation(elements, translations) {
     console.log('Replaced elements with translations');
 }
 
-// Store original text before translation
-function storeOriginalTexts(elements) {
-    originalTexts = elements.map(elem => elem.textContent.trim());
-    console.log(`Stored ${originalTexts.length} original texts`);
-}
-
 // Enhanced translation function with error handling and state management
 async function testTranslation() {
     console.log('Starting translation test...');
