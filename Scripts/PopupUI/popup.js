@@ -1,17 +1,49 @@
+/* ---------------------- Popup Logic ---------------------- */
+
+// constants -----------
+const settingsBtn = document.getElementById('settings-btn');
+const darkModeBtn = document.getElementById('dark-mode-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const homePanel = document.getElementById('home-panel');
+
+// Check for settings-icon clicked
+settingsBtn.addEventListener('click', () => {
+    settingsPanel.classList.toggle('hidden');
+    homePanel.classList.toggle('hidden');
+});
+
+// Check for darkmode-icon clicked
+darkModeBtn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark-mode');
+    document.getElementById('light-mode-icon').classList.toggle('hidden', !isDark);
+    document.getElementById('dark-mode-icon').classList.toggle('hidden', isDark);
+    
+    // Save dark mode preference
+    chrome.storage.local.set({ darkMode: isDark });
+});
+
 /* ---------------------- Translate Logic ---------------------- */
 
 // variables -------------
 let isTranslating = false;
-const translateBtn = document.getElementById('translateBtn');
+const translateBtn = document.getElementById('translate-btn');
+const showOriginalBtn = document.getElementById('show-original-btn')
+const indicatorMsg = document.getElementById('current-message')
 
 // On DOM loaded
 document.addEventListener("DOMContentLoaded", () => {
-  chrome.storage.local.get(["targetLang"], (result) => {
+  chrome.storage.local.get(["targetLang", "darkMode"], (result) => {
     if (result.targetLang) {
-        document.getElementById('targetLang').value = result.targetLang;
+        document.getElementById('target-lang').value = result.targetLang;
+    }
+    if (result.darkMode) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('light-mode-icon').classList.remove('hidden');
+        document.getElementById('dark-mode-icon').classList.add('hidden');
     }
   });
 });
+
 
 // Add message listener to handle translation completion
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -19,6 +51,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Reset the UI when translation is complete
         resetTranslationUI(true);
         console.log('Translation completed:', message);
+    }
+    if (message.action === 'toggleComplete') {
+        showOriginalBtn.textContent = 'Done!'
+        setTimeout(() => {
+            showOriginalBtn.disabled = false
+            showOriginalBtn.textContent = 'Show Original'
+        }, 1000)
     }
 });
 
@@ -40,13 +79,37 @@ function resetTranslationUI(showSuccess = false) {
 }
 
 // Event listeners -------------
-document.getElementById('targetLang').addEventListener('change', (event) => {
+showOriginalBtn.addEventListener('click', async () => {
+    if (isTranslating) {
+        alert("No translations yet, please wait...");
+        return;
+    }
+
+    showOriginalBtn.disabled = true
+
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        // Use tabs.sendMessage to talk directly to the content script
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'showOriginal'
+        }, (response) => {
+            console.log('Toggled original/translated text:', response);
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        showOriginalBtn.disabled = false
+        alert('Problems with restoring original text, please refresh the page.');
+    }
+});
+
+document.getElementById('target-lang').addEventListener('change', (event) => {
     const targetLang = event.target.value;
 
     chrome.storage.local.set({ targetLang: targetLang });
 });
 
-document.getElementById('translateBtn').addEventListener('click', async () => {
+translateBtn.addEventListener('click', async () => {
     if (isTranslating) {
         alert("Translation is already in progress. Please wait...");
         return;

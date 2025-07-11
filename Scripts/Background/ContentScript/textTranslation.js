@@ -23,6 +23,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
             // Get the current elements (should match the ones we sent for translation)
             const elements = getFilteredTextElements(document.body);
+            translatedTexts = translatedText
             replaceWithTranslation(elements, translatedText);
             isTranslated = true;
             chrome.runtime.sendMessage({
@@ -37,40 +38,82 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         return true; // For async response
     }
+
+    if (message.action === 'showOriginal') {
+        console.log('Received toggle request for original/translated text.');
+
+        try {
+            if (isTranslated) {
+                if (translationState === 'TranslatedText') {
+                    restoreOriginalText();
+                    translationState = 'RawText';
+                    console.log('Restored original text.');
+                } else {
+                    restoreTranslatedText();
+                    translationState = 'TranslatedText';
+                    console.log('Restored translated text.');
+                }
+
+                chrome.runtime.sendMessage({ 
+                    action: 'toggleComplete',
+                    state: translationState 
+                });
+            }
+            sendResponse({ success: true });
+        } catch (error) {
+            console.error('Toggle failed:', error.message);
+            sendResponse({ success: false, error: error.message });
+        }
+
+        return true;
+    }
 });
 
 // Translation state management
 let isTranslated = false;
+let translationState = 'RawText'
 let originalTexts = [];
+let translatedTexts = [];
 
 function getFilteredTextElements(root) {
     const elements = [];
-        
+    
     function move(elem) {
         // Skip script, iframe, and style tags
-        if (elem.tagName.toUpperCase() === 'SCRIPT' ||
+        if (elem.tagName && (
+            elem.tagName.toUpperCase() === 'SCRIPT' ||
             elem.tagName.toUpperCase() === 'IFRAME' ||
-            elem.tagName.toUpperCase() === 'STYLE') {
+            elem.tagName.toUpperCase() === 'STYLE'
+        )) {
             return;
         }
 
         // If element is hidden, skip it
-        const computedStyle = getComputedStyle(elem);
-        if (computedStyle.display === 'none' ||
-            computedStyle.visibility === 'hidden') {
-            return;
+        if (elem.nodeType === Node.ELEMENT_NODE) {
+            const computedStyle = getComputedStyle(elem);
+            if (computedStyle.display === 'none' ||
+                computedStyle.visibility === 'hidden') {
+                return;
+            }
         }
 
         // Process all child nodes (including text nodes)
-        Array.from(elem.childNodes).forEach(node => {
+        Array.from(elem.childNodes).forEach((node) => {
             if (node.nodeType === Node.TEXT_NODE) {
-                // Handle text nodes directly
-                const text = node.textContent.trim();
-                if (text !== "" && shouldIncludeText(text)) {
-                    elements.push(node);
+                const originalText = node.textContent;
+                const trimmedText = originalText.trim();
+                
+                if (trimmedText !== "" && shouldIncludeText(trimmedText)) {
+                    elements.push({
+                        node: node,
+                        originalText: originalText, // Store original text with all spacing
+                        trimmedText: trimmedText,   // Store trimmed text for translation
+                        // Store leading and trailing whitespace patterns
+                        leadingWhitespace: originalText.match(/^\s*/)[0],
+                        trailingWhitespace: originalText.match(/\s*$/)[0]
+                    });
                 }
             } else if (node.nodeType === Node.ELEMENT_NODE) {
-                // Recursively process element nodes
                 move(node);
             }
         });
@@ -106,16 +149,17 @@ function replaceWithTranslation(elements, translations) {
 
     elements.forEach((elem, index) => {
        if (translations[index]) {
-            // Handle both text nodes and element nodes
-            if (elem.nodeType === Node.TEXT_NODE) {
-                elem.textContent = translations[index];
-            } else {
-                elem.textContent = translations[index];
-            }
+            let translatedText = translations[index];
+            
+            // Preserve original spacing pattern
+            const newText = elem.leadingWhitespace + translatedText + elem.trailingWhitespace;
+            
+            elem.node.textContent = newText;
        }
     });
 
     console.log('Replaced elements with translations');
+    translationState = 'TranslatedText'
 }
 
 // Enhanced translation function with error handling and state management
@@ -131,7 +175,7 @@ async function testTranslation() {
     try {
         // Get elements and texts
         const elements = getFilteredTextElements(document.body);
-        const texts = elements.map(elem => elem.textContent.trim());
+        const texts = elements.map(elem => elem.trimmedText); // Use trimmedText instead of processing again
 
         if (texts.length === 0) {
             console.log('No texts found to translate');
@@ -178,19 +222,43 @@ async function testTranslation() {
     };
 }
 
-// Store original text for later rollback (kept for backward compatibility)
-let originalText = [];
+// Store original text for later rollback
 function storeOriginalTexts(elements) {
     originalTexts = elements.map(elem => {
-        // Handle both text nodes and element nodes
-        if (elem.nodeType === Node.TEXT_NODE) {
-            return elem.textContent.trim();
-        } else {
-            return elem.textContent.trim();
-        }
+        // Store the complete original text with spacing
+        return elem.originalText;
     });
     console.log(`Stored ${originalTexts.length} original texts`);
 }
+
+function restoreTranslatedText() {
+    if (translatedTexts.length === 0) {
+        console.error('No translated text stored to restore.');
+        return;
+    }
+
+    try {
+        const elements = getFilteredTextElements(document.body);
+
+        if (elements.length !== translatedTexts.length) {
+            console.warn(`Element count mismatch: ${elements.length} elements vs ${translatedTexts.length} translated texts`);
+        }
+
+        elements.forEach((elem, index) => {
+            if (translatedTexts[index] !== undefined) {
+                const newText = elem.leadingWhitespace + translatedTexts[index] + elem.trailingWhitespace;
+                elem.node.textContent = newText;
+            }
+        });
+
+        translationState = 'TranslatedText';
+        console.log('Translated text restored successfully');
+    } catch (error) {
+        console.error('Error restoring translated text:', error.message);
+        throw error;
+    }
+}
+
 
 function restoreOriginalText() {
     const textsToRestore = originalTexts.length > 0 ? originalTexts : originalText;
@@ -208,8 +276,9 @@ function restoreOriginalText() {
         }
         
         elements.forEach((elem, index) => {
-            if (textsToRestore[index]) {
-                elem.textContent = textsToRestore[index]; // Restore original text
+            if (textsToRestore[index] !== undefined) {
+                // Restore the complete original text (with original spacing)
+                elem.node.textContent = textsToRestore[index];
             }
         });
         
@@ -226,4 +295,4 @@ function restoreOriginalText() {
 // Debug: Log when content script loads
 console.log('Translation content script loaded');
 console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
-console.log(getFilteredTextElements(document.body).map(elem => elem.textContent.trim())); // Log first 10 text elements
+console.log(getFilteredTextElements(document.body).map(elem => elem.trimmedText));
