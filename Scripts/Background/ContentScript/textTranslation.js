@@ -67,11 +67,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         return true;
     }
+    if (message.action === 'getTranslationState') {
+        sendResponse({ isTranslated, translationState })
+    }
 });
 
 // Translation state management
 let isTranslated = false;
-let translationState = 'RawText'
+let translationState = 'RawText';
 let originalTexts = [];
 let translatedTexts = [];
 
@@ -251,7 +254,6 @@ function restoreTranslatedText() {
             }
         });
 
-        translationState = 'TranslatedText';
         console.log('Translated text restored successfully');
     } catch (error) {
         console.error('Error restoring translated text:', error.message);
@@ -261,7 +263,7 @@ function restoreTranslatedText() {
 
 
 function restoreOriginalText() {
-    const textsToRestore = originalTexts.length > 0 ? originalTexts : originalText;
+    const textsToRestore = originalTexts.length > 0 ? originalTexts : [];
     
     if (textsToRestore.length === 0) {
         console.error('No original text stored to restore.');
@@ -282,8 +284,6 @@ function restoreOriginalText() {
             }
         });
         
-        // Reset translation state
-        isTranslated = false;
         console.log('Original text restored successfully');
         
     } catch (error) {
@@ -295,4 +295,3 @@ function restoreOriginalText() {
 // Debug: Log when content script loads
 console.log('Translation content script loaded');
 console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
-console.log(getFilteredTextElements(document.body).map(elem => elem.trimmedText));
