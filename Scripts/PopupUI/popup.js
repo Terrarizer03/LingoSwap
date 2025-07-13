@@ -28,7 +28,6 @@ darkModeBtn.addEventListener('click', () => {
 let isTranslating = false;
 const translateBtn = document.getElementById('translate-btn');
 const showOriginalBtn = document.getElementById('show-original-btn')
-const indicatorMsg = document.getElementById('current-message')
 
 // On DOM loaded
 document.addEventListener("DOMContentLoaded", () => {
@@ -36,6 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (result.targetLang) {
             document.getElementById('target-lang').value = result.targetLang;
         }
+
         if (result.darkMode) {
             document.body.classList.add('dark-mode');
             document.getElementById('light-mode-icon').classList.remove('hidden');
@@ -59,6 +59,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translationComplete') {
         // Reset the UI when translation is complete
         resetTranslationUI(true);
+        addLoadingState(translateBtn, false)
         
         // Update button state - so the show original button is enabled.
         updateButtonState(true, 'TranslatedText')
@@ -82,6 +83,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
+function addLoadingState(button, state=false) {
+    if (state) {
+        button.classList.add('loading');
+    } else {
+        button.classList.remove('loading');
+    }
+}
+
 // Update button state
 function updateButtonState(isTranslated, translationState) {
     const showOriginalBtn = document.getElementById('show-original-btn');
@@ -90,7 +99,6 @@ function updateButtonState(isTranslated, translationState) {
         showOriginalBtn.disabled = true;
         showOriginalBtn.textContent = 'Show Original';
     } else {
-        console.log('Translation state:', translationState);
         showOriginalBtn.disabled = false;
         showOriginalBtn.textContent = translationState === 'RawText' ? 'Show Translated' : 'Show Original';
     }
@@ -150,6 +158,7 @@ translateBtn.addEventListener('click', async () => {
         return;
     }
 
+    addLoadingState(translateBtn, true)
     isTranslating = true;
     translateBtn.disabled = true;
     translateBtn.textContent = "Translating...";
@@ -168,6 +177,7 @@ translateBtn.addEventListener('click', async () => {
         setTimeout(() => {
             if (isTranslating) { // Only reset if still translating (not already reset by message)
                 resetTranslationUI(false);
+                addLoadingState(translateBtn, false)
                 console.log('Translation reset by timeout fallback');
             }
         }, 45000);
@@ -175,6 +185,7 @@ translateBtn.addEventListener('click', async () => {
         console.error('Error:', error);
         alert('Please refresh the page and try again.');
         resetTranslationUI(false);
+        addLoadingState(translateBtn, false)
     }
 });
 

@@ -81,6 +81,25 @@ let translatedTexts = [];
 function getFilteredTextElements(root) {
     const elements = [];
     
+    // If root is document.body, also extract head elements
+    if (root === document.body) {
+        extractHeadElements();
+    }
+    
+    function extractHeadElements() {
+        // Extract title using document.title (visible in browser tab)
+        if (document.title && document.title.trim() !== "" && shouldIncludeText(document.title.trim())) {
+            elements.push({
+                node: document.head.querySelector('title'), // Still store the element node for consistency
+                type: 'page-title',
+                originalText: document.title,
+                trimmedText: document.title.trim(),
+                leadingWhitespace: document.title.match(/^\s*/)[0],
+                trailingWhitespace: document.title.match(/\s*$/)[0]
+            });
+        }
+    }
+
     function move(elem) {
         // Skip script, iframe, and style tags
         if (elem.tagName && (
@@ -100,6 +119,11 @@ function getFilteredTextElements(root) {
             }
         }
 
+        // Extract attribute text from the current element
+        if (elem.nodeType === Node.ELEMENT_NODE) {
+            extractAttributeText(elem);
+        }
+
         // Process all child nodes (including text nodes)
         Array.from(elem.childNodes).forEach((node) => {
             if (node.nodeType === Node.TEXT_NODE) {
@@ -109,6 +133,7 @@ function getFilteredTextElements(root) {
                 if (trimmedText !== "" && shouldIncludeText(trimmedText)) {
                     elements.push({
                         node: node,
+                        type: 'text',
                         originalText: originalText, // Store original text with all spacing
                         trimmedText: trimmedText,   // Store trimmed text for translation
                         // Store leading and trailing whitespace patterns
@@ -120,6 +145,82 @@ function getFilteredTextElements(root) {
                 move(node);
             }
         });
+    }
+
+    function extractAttributeText(elem) {
+        // Extract title attribute
+        if (elem.title && elem.title.trim() !== "" && shouldIncludeText(elem.title.trim())) {
+            elements.push({
+                node: elem,
+                type: 'title',
+                originalText: elem.title,
+                trimmedText: elem.title.trim(),
+                attribute: 'title',
+                leadingWhitespace: elem.title.match(/^\s*/)[0],
+                trailingWhitespace: elem.title.match(/\s*$/)[0]
+            });
+        }
+
+        // Extract alt attribute (for images, area elements, etc.)
+        if (elem.alt && elem.alt.trim() !== "" && shouldIncludeText(elem.alt.trim())) {
+            elements.push({
+                node: elem,
+                type: 'alt',
+                originalText: elem.alt,
+                trimmedText: elem.alt.trim(),
+                attribute: 'alt',
+                leadingWhitespace: elem.alt.match(/^\s*/)[0],
+                trailingWhitespace: elem.alt.match(/\s*$/)[0]
+            });
+        }
+
+        // Extract placeholder attribute (for input elements, textarea, etc.)
+        if (elem.placeholder && elem.placeholder.trim() !== "" && shouldIncludeText(elem.placeholder.trim())) {
+            elements.push({
+                node: elem,
+                type: 'placeholder',
+                originalText: elem.placeholder,
+                trimmedText: elem.placeholder.trim(),
+                attribute: 'placeholder',
+                leadingWhitespace: elem.placeholder.match(/^\s*/)[0],
+                trailingWhitespace: elem.placeholder.match(/\s*$/)[0]
+            });
+        }
+
+        // Extract aria-label attribute (for accessibility)
+        if (elem.getAttribute('aria-label')) {
+            const ariaLabel = elem.getAttribute('aria-label');
+            if (ariaLabel.trim() !== "" && shouldIncludeText(ariaLabel.trim())) {
+                elements.push({
+                    node: elem,
+                    type: 'aria-label',
+                    originalText: ariaLabel,
+                    trimmedText: ariaLabel.trim(),
+                    attribute: 'aria-label',
+                    leadingWhitespace: ariaLabel.match(/^\s*/)[0],
+                    trailingWhitespace: ariaLabel.match(/\s*$/)[0]
+                });
+            }
+        }
+
+        // Extract value attribute for input elements (if it contains user-visible text)
+        if (elem.tagName && (elem.tagName.toUpperCase() === 'INPUT' || elem.tagName.toUpperCase() === 'BUTTON')) {
+            if (elem.value && elem.value.trim() !== "" && shouldIncludeText(elem.value.trim())) {
+                // Only include value for certain input types
+                const inputType = elem.type ? elem.type.toLowerCase() : 'text';
+                if (['button', 'submit', 'reset'].includes(inputType)) {
+                    elements.push({
+                        node: elem,
+                        type: 'value',
+                        originalText: elem.value,
+                        trimmedText: elem.value.trim(),
+                        attribute: 'value',
+                        leadingWhitespace: elem.value.match(/^\s*/)[0],
+                        trailingWhitespace: elem.value.match(/\s*$/)[0]
+                    });
+                }
+            }
+        }
     }
 
     function shouldIncludeText(text) {
@@ -152,12 +253,7 @@ function replaceWithTranslation(elements, translations) {
 
     elements.forEach((elem, index) => {
        if (translations[index]) {
-            let translatedText = translations[index];
-            
-            // Preserve original spacing pattern
-            const newText = elem.leadingWhitespace + translatedText + elem.trailingWhitespace;
-            
-            elem.node.textContent = newText;
+            restoreTextToElement(elem, translations[index]);
        }
     });
 
@@ -225,12 +321,11 @@ async function testTranslation() {
     };
 }
 
-// Store original text for later rollback
+// Store both original text AND the elements themselves
 function storeOriginalTexts(elements) {
-    originalTexts = elements.map(elem => {
-        // Store the complete original text with spacing
-        return elem.originalText;
-    });
+    originalTexts = elements.map(elem => elem.originalText);
+    // Store the actual elements for precise restoration
+    originalElements = elements; // Keep reference to the exact elements
     console.log(`Stored ${originalTexts.length} original texts`);
 }
 
@@ -240,17 +335,19 @@ function restoreTranslatedText() {
         return;
     }
 
-    try {
-        const elements = getFilteredTextElements(document.body);
+    if (!originalElements || originalElements.length === 0) {
+        console.error('No original elements stored.');
+        return;
+    }
 
-        if (elements.length !== translatedTexts.length) {
-            console.warn(`Element count mismatch: ${elements.length} elements vs ${translatedTexts.length} translated texts`);
+    try {
+        if (originalElements.length !== translatedTexts.length) {
+            console.warn(`Element count mismatch: ${originalElements.length} elements vs ${translatedTexts.length} translated texts`);
         }
 
-        elements.forEach((elem, index) => {
+        originalElements.forEach((elem, index) => {
             if (translatedTexts[index] !== undefined) {
-                const newText = elem.leadingWhitespace + translatedTexts[index] + elem.trailingWhitespace;
-                elem.node.textContent = newText;
+                restoreTextToElement(elem, translatedTexts[index]);
             }
         });
 
@@ -261,7 +358,6 @@ function restoreTranslatedText() {
     }
 }
 
-
 function restoreOriginalText() {
     const textsToRestore = originalTexts.length > 0 ? originalTexts : [];
     
@@ -270,17 +366,19 @@ function restoreOriginalText() {
         return;
     }
 
+    if (!originalElements || originalElements.length === 0) {
+        console.error('No original elements stored.');
+        return;
+    }
+
     try {
-        const elements = getFilteredTextElements(document.body);
-        
-        if (elements.length !== textsToRestore.length) {
-            console.warn(`Element count mismatch: ${elements.length} elements vs ${textsToRestore.length} stored texts`);
+        if (originalElements.length !== textsToRestore.length) {
+            console.warn(`Element count mismatch: ${originalElements.length} elements vs ${textsToRestore.length} stored texts`);
         }
         
-        elements.forEach((elem, index) => {
+        originalElements.forEach((elem, index) => {
             if (textsToRestore[index] !== undefined) {
-                // Restore the complete original text (with original spacing)
-                elem.node.textContent = textsToRestore[index];
+                restoreTextToElement(elem, textsToRestore[index]);
             }
         });
         
@@ -290,6 +388,63 @@ function restoreOriginalText() {
         console.error('Error restoring original text:', error.message);
         throw error;
     }
+}
+
+const elementRestorers = {
+    'text': (elem, text) => {
+        const newText = elem.leadingWhitespace + text + elem.trailingWhitespace;
+        elem.node.textContent = newText;
+    },
+    'title': (elem, text) => elem.node.title = text,
+    'alt': (elem, text) => elem.node.alt = text,
+    'placeholder': (elem, text) => elem.node.placeholder = text,
+    'aria-label': (elem, text) => elem.node.setAttribute('aria-label', text),
+    'value': (elem, text) => elem.node.value = text,
+    'page-title': (elem, text) => document.title = text
+};
+
+
+// Helper function to restore text to the correct location based on element type
+function restoreTextToElement(elem, text) {
+    try {
+        const restorer = elementRestorers[elem.type];
+        
+        if (restorer) {
+            restorer(elem, text);
+        } else {
+            // Fallback for unknown types
+            console.warn(`Unknown element type: ${elem.type}`);
+            if (elem.attribute) {
+                elem.node.setAttribute(elem.attribute, text);
+            } else {
+                const newText = elem.leadingWhitespace + text + elem.trailingWhitespace;
+                elem.node.textContent = newText;
+            }
+        }
+    } catch (error) {
+        console.error(`Error restoring text for element type ${elem.type}:`, error);
+    }
+}
+
+// Debug function to help troubleshoot placeholder issues
+function debugPlaceholderElements() {
+    const elements = getFilteredTextElements(document.body);
+    const placeholderElements = elements.filter(elem => elem.type === 'placeholder');
+    
+    console.log('Found placeholder elements:', placeholderElements);
+    
+    // Also check all input elements manually
+    const allInputs = document.querySelectorAll('input[placeholder], textarea[placeholder]');
+    console.log('All inputs with placeholder attribute:', allInputs);
+    
+    allInputs.forEach((input, index) => {
+        console.log(`Input ${index}:`, {
+            tagName: input.tagName,
+            type: input.type,
+            placeholder: input.placeholder,
+            visible: getComputedStyle(input).display !== 'none' && getComputedStyle(input).visibility !== 'hidden'
+        });
+    });
 }
 
 // Debug: Log when content script loads

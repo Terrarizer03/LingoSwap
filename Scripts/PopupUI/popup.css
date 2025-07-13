@@ -1,3 +1,29 @@
+/* Loading animation */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+/* ---------------- */
+
 :root {
     --transition: all 0.3s ease;
     --primary-color: #686868;
@@ -8,6 +34,7 @@
     --icon-hover: #e0e0e0;
     --icon-active: #d0d0d0;
     --btn-hover: #e6e6e6;
+    --chunking-color: #cecece;
 }
 
 .dark-mode {
@@ -19,6 +46,7 @@
     --icon-hover: #3a3a3a;
     --icon-active: #4a4a4a;
     --btn-hover: #3a3a3a;
+    --chunking-color: #575757;
 }
 
 html {
@@ -159,16 +187,32 @@ body {
     background-color: #4345e6;
 }
 
-#current-message {
+.progress-display {
     display: flex;
-    justify-self: center;
-    align-items: center;
-    width: 95%;
-    height: 25px;
+    flex-direction: column;
+    align-items: flex-start;
     font-size: 12px;
     color: var(--primary-color);
-    padding-left: 20px;
-    padding-top: 10px;
+    padding: 15px 20px;
+    gap: 5px;
+}
+
+.progress-display label {
+    font-size: 14px;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.status-container {
+    display: flex;
+    gap: 10px; /* spacing between the boxes */
+}
+
+.status-box {
+    background-color: var(--top-bar-bg);
+    border: var(--chunking-color) solid 1px;
+    padding: 5px 10px;
+    border-radius: 5px;
 }
 
 .screen-settings {

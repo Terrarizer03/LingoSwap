@@ -39,7 +39,13 @@
                 <button class="main-btn" id="show-original-btn">Show Original</button>
             </div>
 
-            <div id="current-message"></div>
+            <div class="progress-display">
+                <label>Translation Report:</label>
+                <div class="status-container">
+                    <div class="status-box">Translated | <span id="translated-count">0</span></div>
+                    <div class="status-box">Translating | <span id="translating-count">0</span></div>
+                </div>
+            </div>
         </div>
 
         <div class="screen-settings hidden" id="settings-panel">
