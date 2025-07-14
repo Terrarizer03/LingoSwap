@@ -51,6 +51,18 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     });
+    chrome.runtime.sendMessage({
+        action: 'getTranslationProgress'
+    }, (response) => {
+        if (response && response.success) {
+            if (response.totalItems > 0) {
+                updateTranslationReport({
+                    translated: response.translated,
+                    remaining: response.remaining
+                })
+            }
+        }
+    })
 });
 
 
@@ -65,6 +77,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         updateButtonState(true, 'TranslatedText')
         console.log('Translation completed:', message);
     }
+    
     if (message.action === 'toggleComplete') {
         showOriginalBtn.textContent = 'Done!'
         setTimeout(() => {
@@ -81,8 +94,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
         }, 500)
     }
+
+    if (message.action === 'translationProgress') {
+        updateTranslationReport({
+            translated: message.translated,
+            remaining: message.remaining
+        });
+    }
 });
 
+// Loading state for UX
 function addLoadingState(button, state=false) {
     if (state) {
         button.classList.add('loading');
@@ -90,6 +111,21 @@ function addLoadingState(button, state=false) {
         button.classList.remove('loading');
     }
 }
+
+// Translation Reports -----------------
+function updateTranslationReport(progress) {
+    const translatingDisplay = document.getElementById('translating-count');
+    const translatedDisplay = document.getElementById('translated-count');
+
+    // Add null checks to prevent errors
+    if (translatedDisplay) {
+        translatedDisplay.textContent = progress.translated || 0;
+    }
+    if (translatingDisplay) {
+        translatingDisplay.textContent = progress.remaining || 0;
+    }
+}
+// -------------------------------------
 
 // Update button state
 function updateButtonState(isTranslated, translationState) {

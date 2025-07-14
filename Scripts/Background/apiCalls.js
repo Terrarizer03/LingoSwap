@@ -1,3 +1,24 @@
+// Listen for tab updates (including reloads)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    // Check if the tab is reloading or has completed loading
+    if (changeInfo.status === 'loading') {
+        // Clear translation state for this tab
+        if (tabTranslationStates[tabId]) {
+            console.log(`Tab ${tabId} is reloading, clearing translation state`);
+            delete tabTranslationStates[tabId];
+        }
+        
+        // Reset global translation state if this was the active translating tab
+        if (currentTranslationState.isTranslating) {
+            // You might want to check if this is the currently translating tab
+            currentTranslationState.isTranslating = false;
+            currentTranslationState.totalItems = 0;
+            currentTranslationState.translatedItems = 0;
+            currentTranslationState.remainingItems = 0;
+        }
+    }
+});
+
 // Listen to messages from the popup to save the API key
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'saveAPIKey') {
@@ -17,13 +38,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         return true;
     }
-});
 
-// Listen for translate request from popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Listen for translate request from popup
     if (message.action === 'translate') {
+        currentTranslationState.isTranslating = true;
         const { tabId } = message;
-        const targetLang = chrome.storage.local.get(['targetLang'])
+        const targetLang  = chrome.storage.local.get(['targetLang'])
 
         console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
 
@@ -48,13 +68,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         return true;
     }
-});
 
-// Listen for text to translate from content script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Listen for text to translate from content script
     if (message.action === 'getTextToTranslate') {
         const textArray = message.textArray;
         const tabId = sender.tab.id;
+        
+        // Initialize state for this tab
+        tabTranslationStates[tabId] = {
+            isTranslating: true,
+            totalItems: textArray.length,
+            translatedItems: 0,
+            remainingItems: textArray.length
+        };
         
         console.log(`Received ${textArray.length} texts to translate from tab ${tabId}`);
 
@@ -81,8 +107,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             try {
+
+                // Send Initial Progress State 
+                sendProgressUpdate(0, textArray.length);
+
                 // Perform translation
-                const translatedArray = await performTranslation(textArray, targetLang, apiKey);
+                const translatedArray = await performTranslation(textArray, targetLang, apiKey, tabId);
                 
                 // Send results back to the content script
                 chrome.tabs.sendMessage(tabId, {
@@ -94,6 +124,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         sendResponse({ success: false, error: chrome.runtime.lastError.message });
                     } else {
                         console.log('Successfully sent translated text to content script');
+                        currentTranslationState.isTranslating = false;
+                        sendProgressUpdate(textArray.length, 0) // Send Progress Report Once Finished
                         sendResponse({ success: true });
                     }
                 });
@@ -109,10 +141,57 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         return true; // For async response
     }
+
+    if (message.action === 'getTranslationProgress') {
+        // Get current active tab
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tabId = tabs[0].id;
+            const state = tabTranslationStates[tabId] || {
+                isTranslating: false,
+                totalItems: 0,
+                translatedItems: 0,
+                remainingItems: 0
+            };
+            
+            sendResponse({
+                success: true,
+                isTranslating: state.isTranslating,
+                translated: state.translatedItems,
+                remaining: state.remainingItems,
+                totalItems: state.totalItems
+            });
+        });
+        return true;
+    }
 });
 
+let tabTranslationStates = {};
+
+// Translation State
+let currentTranslationState = {
+    isTranslating: false,
+    totalItems: 0,
+    translatedItems: 0,
+    remainingItems: 0
+};
+
+// Function for Sending Progress to Popup
+function sendProgressUpdate(translated, remaining, tabId) {
+    // Update state for specific tab
+    if (tabTranslationStates[tabId]) {
+        tabTranslationStates[tabId].translatedItems = translated;
+        tabTranslationStates[tabId].remainingItems = remaining;
+    }
+    
+    chrome.runtime.sendMessage({
+        action: 'translationProgress',
+        translated: translated,
+        remaining: remaining
+    }).catch(() => {});
+}
+
 // Enhanced translation function with chunking support
-async function performTranslation(textArray, targetLang, apiKey) {
+async function performTranslation(textArray, targetLang, apiKey, tabId) {
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
     const CHUNK_SIZE = 100;
@@ -120,7 +199,10 @@ async function performTranslation(textArray, targetLang, apiKey) {
     
     // If array is small enough, use original method
     if (textArray.length <= CHUNK_SIZE) {
-        return await translateSingleChunk(textArray, targetLang, apiKey, 0);
+        const result = await translateSingleChunk(textArray, targetLang, apiKey, 0);
+        // Send final progress for single chunk
+        sendProgressUpdate(textArray.length, 0, tabId)
+        return result
     }
     
     // Split into chunks
@@ -137,14 +219,21 @@ async function performTranslation(textArray, targetLang, apiKey) {
         // Create promises for concurrent translation
         const batchPromises = batchChunks.map((chunk, batchIndex) => {
             const globalChunkIndex = i + batchIndex;
-            return translateChunkWithContext(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray);
+            return translateChunkWithContext(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray)
+                .then(result => {
+                    // Update progress immediately when this chunk completes
+                    allTranslatedChunks.push(result);
+                    const totalTranslated = allTranslatedChunks.flat().length;
+                    const totalRemaining = textArray.length - totalTranslated;
+                    sendProgressUpdate(totalTranslated, totalRemaining, tabId);
+                    return result;
+                });
         });
-        
+
         try {
             // Wait for current batch to complete
             const batchResults = await Promise.all(batchPromises);
-            allTranslatedChunks.push(...batchResults);
-            
+
             // Add delay between batches to avoid rate limiting
             if (i + CONCURRENT_REQUESTS < chunks.length) {
                 await delay(1000); // 1 second delay between batches

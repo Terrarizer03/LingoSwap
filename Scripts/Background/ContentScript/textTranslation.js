@@ -426,27 +426,6 @@ function restoreTextToElement(elem, text) {
     }
 }
 
-// Debug function to help troubleshoot placeholder issues
-function debugPlaceholderElements() {
-    const elements = getFilteredTextElements(document.body);
-    const placeholderElements = elements.filter(elem => elem.type === 'placeholder');
-    
-    console.log('Found placeholder elements:', placeholderElements);
-    
-    // Also check all input elements manually
-    const allInputs = document.querySelectorAll('input[placeholder], textarea[placeholder]');
-    console.log('All inputs with placeholder attribute:', allInputs);
-    
-    allInputs.forEach((input, index) => {
-        console.log(`Input ${index}:`, {
-            tagName: input.tagName,
-            type: input.type,
-            placeholder: input.placeholder,
-            visible: getComputedStyle(input).display !== 'none' && getComputedStyle(input).visibility !== 'hidden'
-        });
-    });
-}
-
 // Debug: Log when content script loads
 console.log('Translation content script loaded');
 console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
