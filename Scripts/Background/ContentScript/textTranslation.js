@@ -5,6 +5,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         (async () => {
             try {
+                isTranslating = true;
                 await testTranslation(); // Wait for the full translation process
                 sendResponse({ success: true, message: 'Translation complete' });
             } catch (err) {
@@ -13,6 +14,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })();
 
         return true; // Tell Chrome this response is async
+    }
+
+    if (message.action === 'translatingOrNot') {
+        sendResponse({
+            success: true,
+            translationStatus: isTranslating
+        })
     }
     
     // Listen for translated text from background script
@@ -25,6 +33,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const elements = getFilteredTextElements(document.body);
             translatedTexts = translatedText
             replaceWithTranslation(elements, translatedText);
+            isTranslating = false;
             isTranslated = true;
             chrome.runtime.sendMessage({
                 action: 'translationComplete'
@@ -73,6 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Translation state management
+let isTranslating = false;
 let isTranslated = false;
 let translationState = 'RawText';
 let originalTexts = [];
@@ -83,11 +93,6 @@ function getFilteredTextElements(root) {
     
     // If root is document.body, also extract head elements
     if (root === document.body) {
-        extractHeadElements();
-    }
-    
-    function extractHeadElements() {
-        // Extract title using document.title (visible in browser tab)
         if (document.title && document.title.trim() !== "" && shouldIncludeText(document.title.trim())) {
             elements.push({
                 node: document.head.querySelector('title'), // Still store the element node for consistency
@@ -100,23 +105,30 @@ function getFilteredTextElements(root) {
         }
     }
 
+    function pushIfValidAttr(elem, attrName, type) {
+        const value = elem.getAttribute(attrName) || '';
+        if (value && value.trim() !== "" && shouldIncludeText(value.trim())) {
+            elements.push({
+                node: elem,
+                type: type,
+                originalText: value,
+                trimmedText: value.trim(),
+                attribute: attrName,
+                leadingWhitespace: value.match(/^\s*/)[0],
+                trailingWhitespace: value.match(/\s*$/)[0]
+            });
+        }
+    }
+
     function move(elem) {
         // Skip script, iframe, and style tags
-        if (elem.tagName && (
-            elem.tagName.toUpperCase() === 'SCRIPT' ||
-            elem.tagName.toUpperCase() === 'IFRAME' ||
-            elem.tagName.toUpperCase() === 'STYLE'
-        )) {
-            return;
-        }
+        const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME'])
+        if (elem.tagName && SKIPPED_TAGS.has(elem.tagName.toUpperCase())) return;
 
         // If element is hidden, skip it
         if (elem.nodeType === Node.ELEMENT_NODE) {
             const computedStyle = getComputedStyle(elem);
-            if (computedStyle.display === 'none' ||
-                computedStyle.visibility === 'hidden') {
-                return;
-            }
+            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') return;
         }
 
         // Extract attribute text from the current element
@@ -148,77 +160,16 @@ function getFilteredTextElements(root) {
     }
 
     function extractAttributeText(elem) {
-        // Extract title attribute
-        if (elem.title && elem.title.trim() !== "" && shouldIncludeText(elem.title.trim())) {
-            elements.push({
-                node: elem,
-                type: 'title',
-                originalText: elem.title,
-                trimmedText: elem.title.trim(),
-                attribute: 'title',
-                leadingWhitespace: elem.title.match(/^\s*/)[0],
-                trailingWhitespace: elem.title.match(/\s*$/)[0]
-            });
-        }
-
-        // Extract alt attribute (for images, area elements, etc.)
-        if (elem.alt && elem.alt.trim() !== "" && shouldIncludeText(elem.alt.trim())) {
-            elements.push({
-                node: elem,
-                type: 'alt',
-                originalText: elem.alt,
-                trimmedText: elem.alt.trim(),
-                attribute: 'alt',
-                leadingWhitespace: elem.alt.match(/^\s*/)[0],
-                trailingWhitespace: elem.alt.match(/\s*$/)[0]
-            });
-        }
-
-        // Extract placeholder attribute (for input elements, textarea, etc.)
-        if (elem.placeholder && elem.placeholder.trim() !== "" && shouldIncludeText(elem.placeholder.trim())) {
-            elements.push({
-                node: elem,
-                type: 'placeholder',
-                originalText: elem.placeholder,
-                trimmedText: elem.placeholder.trim(),
-                attribute: 'placeholder',
-                leadingWhitespace: elem.placeholder.match(/^\s*/)[0],
-                trailingWhitespace: elem.placeholder.match(/\s*$/)[0]
-            });
-        }
-
-        // Extract aria-label attribute (for accessibility)
-        if (elem.getAttribute('aria-label')) {
-            const ariaLabel = elem.getAttribute('aria-label');
-            if (ariaLabel.trim() !== "" && shouldIncludeText(ariaLabel.trim())) {
-                elements.push({
-                    node: elem,
-                    type: 'aria-label',
-                    originalText: ariaLabel,
-                    trimmedText: ariaLabel.trim(),
-                    attribute: 'aria-label',
-                    leadingWhitespace: ariaLabel.match(/^\s*/)[0],
-                    trailingWhitespace: ariaLabel.match(/\s*$/)[0]
-                });
-            }
-        }
+        pushIfValidAttr(elem, 'title', 'title');
+        pushIfValidAttr(elem, 'alt', 'alt');
+        pushIfValidAttr(elem, 'placeholder', 'placeholder');
+        pushIfValidAttr(elem, 'aria-label', 'aria-label');
 
         // Extract value attribute for input elements (if it contains user-visible text)
-        if (elem.tagName && (elem.tagName.toUpperCase() === 'INPUT' || elem.tagName.toUpperCase() === 'BUTTON')) {
-            if (elem.value && elem.value.trim() !== "" && shouldIncludeText(elem.value.trim())) {
-                // Only include value for certain input types
-                const inputType = elem.type ? elem.type.toLowerCase() : 'text';
-                if (['button', 'submit', 'reset'].includes(inputType)) {
-                    elements.push({
-                        node: elem,
-                        type: 'value',
-                        originalText: elem.value,
-                        trimmedText: elem.value.trim(),
-                        attribute: 'value',
-                        leadingWhitespace: elem.value.match(/^\s*/)[0],
-                        trailingWhitespace: elem.value.match(/\s*$/)[0]
-                    });
-                }
+        if (elem.tagName && (elem.tagName.toUpperCase() === 'INPUT' || elem.tagName.toUpperCase() === 'BUTTON')) {    
+            const inputType = elem.type ? elem.type.toLowerCase() : 'text';
+            if (['button', 'submit', 'reset'].includes(inputType)) {
+                pushIfValidAttr(elem, 'value', 'value');
             }
         }
     }

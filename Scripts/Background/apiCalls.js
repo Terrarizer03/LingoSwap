@@ -1,71 +1,49 @@
+// THIS CODE IS ACTUALLY BULLSHIT I UNDERSTAND LIKE 2% OF IT FUCK
+
 // Listen for tab updates (including reloads)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    // Check if the tab is reloading or has completed loading
-    if (changeInfo.status === 'loading') {
-        // Clear translation state for this tab
-        if (tabTranslationStates[tabId]) {
-            console.log(`Tab ${tabId} is reloading, clearing translation state`);
-            delete tabTranslationStates[tabId];
-        }
-        
-        // Reset global translation state if this was the active translating tab
-        if (currentTranslationState.isTranslating) {
-            // You might want to check if this is the currently translating tab
+    if (changeInfo.status === 'loading' && tabTranslationStates[tabId]) { // Check if the tab is reloading or has completed loading
+        console.log(`Tab ${tabId} is reloading, clearing translation state`); // Clear translation state for this tab
+        delete tabTranslationStates[tabId];
+        if (currentTranslationState.isTranslating && currentTranslationState.tabId === tabId) { // Reset global translation state if this was the active translating tab
+            // I should add helper functions to help with my mental state :)
             currentTranslationState.isTranslating = false;
             currentTranslationState.totalItems = 0;
             currentTranslationState.translatedItems = 0;
             currentTranslationState.remainingItems = 0;
-        }
+            currentTranslationState.tabId = null;
+        }   
     }
 });
 
 // Listen to messages from the popup to save the API key
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'saveAPIKey') {
-        chrome.storage.local.set({ apiKey: message.apiKey }, () => {
-            if (chrome.runtime.lastError) {
-                sendResponse({
-                    success: false,
-                    message: 'Failed to save API key: ' + chrome.runtime.lastError.message
-                });
-            } else {
-                sendResponse({
-                    success: true,
-                    message: 'API key saved successfully'
-                });
-            }
-        });
-
-        return true;
-    }
-
     // Listen for translate request from popup
     if (message.action === 'translate') {
         currentTranslationState.isTranslating = true;
         const { tabId } = message;
-        const targetLang  = chrome.storage.local.get(['targetLang'])
-
-        console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
-
-        // Store the translation request details for later use
-        chrome.storage.local.set({ 
-            currentTranslationRequest: { tabId, targetLang } 
-        }, () => {
-            // Forward the translate message to content script
-            chrome.tabs.sendMessage(tabId, {
-                action: 'translate'
-            }, (response) => {
-                if (chrome.runtime.lastError) {
-                    sendResponse({ 
-                        success: false, 
-                        message: 'Error communicating with content script: ' + chrome.runtime.lastError.message 
-                    });
-                } else {
-                    sendResponse({ success: true, message: 'Translation initiated' });
-                }
+        chrome.storage.local.get(['targetLang']).then(result => {
+            const targetLang  = result.targetLang || 'English';
+            console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
+            // Store the translation request details for later use
+            chrome.storage.local.set({ 
+                currentTranslationRequest: { tabId, targetLang } 
+            }, () => {
+                // Forward the translate message to content script
+                chrome.tabs.sendMessage(tabId, {
+                    action: 'translate'
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        sendResponse({ 
+                            success: false, 
+                            message: 'Error communicating with content script: ' + chrome.runtime.lastError.message 
+                        });
+                    } else {
+                        sendResponse({ success: true, message: 'Translation initiated' });
+                    }
+                });
             });
-        });
-        
+        }) 
         return true;
     }
 
@@ -109,7 +87,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             try {
 
                 // Send Initial Progress State 
-                sendProgressUpdate(0, textArray.length);
+                sendProgressUpdate(0, textArray.length, tabId);
 
                 // Perform translation
                 const translatedArray = await performTranslation(textArray, targetLang, apiKey, tabId);
@@ -125,7 +103,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     } else {
                         console.log('Successfully sent translated text to content script');
                         currentTranslationState.isTranslating = false;
-                        sendProgressUpdate(textArray.length, 0) // Send Progress Report Once Finished
+                        sendProgressUpdate(textArray.length, 0, tabId); // Send Progress Report Once Finished
                         sendResponse({ success: true });
                     }
                 });
@@ -185,10 +163,11 @@ function sendProgressUpdate(translated, remaining, tabId) {
     
     chrome.runtime.sendMessage({
         action: 'translationProgress',
-        translated: translated,
-        remaining: remaining
-    }).catch(() => {});
-}
+        translated,
+        remaining,
+        tabId
+    }).catch(error => console.error(`Failed to send progress update for tab ${tabId}:`, error));;
+};
 
 // Enhanced translation function with chunking support
 async function performTranslation(textArray, targetLang, apiKey, tabId) {
@@ -199,10 +178,10 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
     
     // If array is small enough, use original method
     if (textArray.length <= CHUNK_SIZE) {
-        const result = await translateSingleChunk(textArray, targetLang, apiKey, 0);
+        const result = await translateTextChunk(textArray, targetLang, apiKey, 0);
         // Send final progress for single chunk
-        sendProgressUpdate(textArray.length, 0, tabId)
-        return result
+        sendProgressUpdate(textArray.length, 0, tabId);
+        return result;
     }
     
     // Split into chunks
@@ -219,8 +198,8 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
         // Create promises for concurrent translation
         const batchPromises = batchChunks.map((chunk, batchIndex) => {
             const globalChunkIndex = i + batchIndex;
-            return translateChunkWithContext(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray)
-                .then(result => {
+            return translateTextChunk(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray)
+                .then(result => { // All this bs just to send progress updates? Fuck
                     // Update progress immediately when this chunk completes
                     allTranslatedChunks.push(result);
                     const totalTranslated = allTranslatedChunks.flat().length;
@@ -255,16 +234,14 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
     return finalTranslatedArray;
 }
 
-// Translate a single chunk with enhanced context
-async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, totalChunks, fullTextArray) {
+// Merged Translate Text Function
+async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    
-    // Create numbered list for this chunk
-    const textList = chunk.map((text, index) => `${index + 1}. ${text}`).join('\n');
-    
-    // Enhanced context-aware prompt
-    const contextPrompt = buildContextualPrompt(chunk, chunkIndex, totalChunks, fullTextArray, targetLang);
-    const prompt = `${contextPrompt}\n\n${textList}`;
+    const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
+    // Determines which prompt to use, single chunk prompt or multi chunk prompt
+    const prompt = fullTextArray && totalChunks > 1
+        ? `${buildContextualPrompt(textArray, chunkIndex, totalChunks, fullTextArray, targetLang)}\n\n${textList}`
+        : `Translate the following text to ${targetLang}. Keep in mind of context, some / a lot of the text in this list are connected to each other. Once finished, return only the translated text in the same format (numbered list), without any additional explanation or commentary:\n\n${textList}`;
 
     const requestBody = {
         contents: [{
@@ -301,14 +278,16 @@ async function translateChunkWithContext(chunk, targetLang, apiKey, chunkIndex, 
         }
 
         const translatedText = data.candidates[0].content.parts[0].text;
-        const translatedArray = parseNumberedResponse(translatedText, chunk.length);
+        const translatedArray = parseNumberedResponse(translatedText, textArray.length);
         
-        console.log(`Chunk ${chunkIndex + 1}/${totalChunks} translated successfully`);
+        if (totalChunks > 1) {
+            console.log(`Chunk ${chunkIndex + 1}/${totalChunks} translated successfully`);
+        }
         return translatedArray;
         
     } catch (error) {
-        console.error(`Gemini API error for chunk ${chunkIndex + 1}:`, error);
-        return chunk.map((text, index) => `[Translation Error - Chunk ${chunkIndex + 1}, Item ${index + 1}] ${text}`);
+        console.error(`Gemini API error${totalChunks > 1 ? ` for chunk ${chunkIndex + 1}` : ''}:`, error);
+        return textArray.map((text, index) => `[Translation Error${totalChunks > 1 ? ` - Chunk ${chunkIndex + 1}, Item ${index + 1}` : ''}] ${text}`);
     }
 }
 
@@ -346,60 +325,6 @@ function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextAr
     contextPrompt += `Maintain consistency in terminology and style. Return only the translated text in numbered format (1. 2. 3. etc.), without any additional explanation:`;
     
     return contextPrompt;
-}
-
-// Fallback for small arrays (original method)
-async function translateSingleChunk(textArray, targetLang, apiKey, chunkIndex = 0) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
-    
-    const prompt = `Translate the following text to ${targetLang}. Keep in mind of context, some / a lot of the text in this list are connected to each other. Once finished, return only the translated text in the same format (numbered list), without any additional explanation or commentary:
-    
-    ${textList}`;
-
-    const requestBody = {
-        contents: [{
-            parts: [{
-                text: prompt
-            }]
-        }],
-        generationConfig: {
-            temperature: 0.1,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-        }
-    };
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            throw new Error('Invalid response format from Gemini API');
-        }
-
-        const translatedText = data.candidates[0].content.parts[0].text;
-        return parseNumberedResponse(translatedText, textArray.length);
-        
-    } catch (error) {
-        console.error('Gemini API error:', error);
-        
-        return textArray.map(text => `[Translation Error] ${text}`);
-    }
 }
 
 // Utility functions

@@ -28,6 +28,7 @@ darkModeBtn.addEventListener('click', () => {
 let isTranslating = false;
 const translateBtn = document.getElementById('translate-btn');
 const showOriginalBtn = document.getElementById('show-original-btn')
+let activeTabId = null;
 
 // On DOM loaded
 document.addEventListener("DOMContentLoaded", () => {
@@ -40,8 +41,12 @@ document.addEventListener("DOMContentLoaded", () => {
             document.body.classList.add('dark-mode');
             document.getElementById('light-mode-icon').classList.remove('hidden');
             document.getElementById('dark-mode-icon').classList.add('hidden');
-        }
+        }    
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        // Sending messages to fuck all, bro needs to refactor ong
+            const currentTabId = tabs[0].id;
+            activeTabId = currentTabId
+
             chrome.tabs.sendMessage(tabs[0].id, {
                 action: 'getTranslationState'
             }, (response) => {
@@ -49,22 +54,34 @@ document.addEventListener("DOMContentLoaded", () => {
                     updateButtonState(response.isTranslated, response.translationState);
                 }
             });
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: 'translatingOrNot'
+            }, (response) => {
+                if (response && response.translationStatus) {
+                    translateBtn.textContent = "Translating...";
+                    addLoadingState(translateBtn, true);
+                } else {
+                    translateBtn.textContent = "Translate";
+                    addLoadingState(translateBtn, false);
+                }
+            });
+            chrome.runtime.sendMessage({
+                action: 'getTranslationProgress',
+                tabId: currentTabId
+            }, (response) => {
+                if (response && response.success) {
+                    if (response.totalItems > 0) {
+                        updateTranslationReport({
+                            translated: response.translated,
+                            remaining: response.remaining
+                        })
+                    }
+                }
+            });
         });
     });
-    chrome.runtime.sendMessage({
-        action: 'getTranslationProgress'
-    }, (response) => {
-        if (response && response.success) {
-            if (response.totalItems > 0) {
-                updateTranslationReport({
-                    translated: response.translated,
-                    remaining: response.remaining
-                })
-            }
-        }
-    })
+    
 });
-
 
 // Add message listener to handle translation completion
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -72,6 +89,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Reset the UI when translation is complete
         resetTranslationUI(true);
         addLoadingState(translateBtn, false)
+        siteTranslated = true;
         
         // Update button state - so the show original button is enabled.
         updateButtonState(true, 'TranslatedText')
@@ -194,13 +212,38 @@ translateBtn.addEventListener('click', async () => {
         return;
     }
 
-    addLoadingState(translateBtn, true)
-    isTranslating = true;
-    translateBtn.disabled = true;
-    translateBtn.textContent = "Translating...";
-
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        // Check current translation state before proceeding
+        const response = await new Promise((resolve, reject) => {
+            chrome.tabs.sendMessage(tab.id, {
+                action: 'getTranslationState'
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                    resolve(response);
+                }
+            });
+        });
+
+        // If site is already translated, show alert and return
+        if (response && response.isTranslated) {
+            translateBtn.textContent = "Already Translated";
+            translateBtn.disable = true;
+            setTimeout(() => {
+                translateBtn.textContent = "Translate";
+                translateBtn.disable = false;
+            }, 750);
+            return;
+        }
+
+        // Proceed with translation
+        addLoadingState(translateBtn, true);
+        isTranslating = true;
+        translateBtn.disabled = true;
+        translateBtn.textContent = "Translating...";
 
         chrome.runtime.sendMessage({
             action: 'translate',
@@ -209,29 +252,24 @@ translateBtn.addEventListener('click', async () => {
             console.log('Translation initiated:', response);
         });
 
-        // Keep the fallback timeout as a safety net
+        // Fallback timeout
         setTimeout(() => {
-            if (isTranslating) { // Only reset if still translating (not already reset by message)
+            if (isTranslating) {
                 resetTranslationUI(false);
-                addLoadingState(translateBtn, false)
+                addLoadingState(translateBtn, false);
                 console.log('Translation reset by timeout fallback');
             }
         }, 45000);
+
     } catch (error) {
         console.error('Error:', error);
         alert('Please refresh the page and try again.');
         resetTranslationUI(false);
-        addLoadingState(translateBtn, false)
+        addLoadingState(translateBtn, false);
     }
 });
 
 document.getElementById('saveAPI').addEventListener('click', () => {
     const apiKey = document.getElementById('inputAPI').value;
-
-    chrome.runtime.sendMessage({
-        action: 'saveAPIKey',
-        apiKey: apiKey
-    }, (response) => {
-        console.log('API Key saved:', response);
-    });
+    chrome.storage.local.set({ apiKey: apiKey });
 });
