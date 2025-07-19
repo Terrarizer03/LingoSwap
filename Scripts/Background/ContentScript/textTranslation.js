@@ -1,6 +1,7 @@
 //Listen for messages from popup via background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translate') {
+        activeTabId = message.tabId;
         console.log('Received request to get text nodes');
 
         (async () => {
@@ -31,12 +32,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
             // Get the current elements (should match the ones we sent for translation)
             const elements = getFilteredTextElements(document.body);
-            translatedTexts = translatedText
+            translatedTexts = translatedText;
             replaceWithTranslation(elements, translatedText);
             isTranslating = false;
             isTranslated = true;
             chrome.runtime.sendMessage({
-                action: 'translationComplete'
+                action: 'translationComplete',
+                tabId: activeTabId
             }); // Notify popup that translation is complete
             console.log('DOM updated with translations');
             sendResponse({ success: true });
@@ -50,6 +52,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.action === 'showOriginal') {
         console.log('Received toggle request for original/translated text.');
+        const tabId = message.tabId;
 
         try {
             if (isTranslated) {
@@ -65,7 +68,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 chrome.runtime.sendMessage({ 
                     action: 'toggleComplete',
-                    state: translationState 
+                    state: translationState,
+                    tabId: tabId 
                 });
             }
             sendResponse({ success: true });
@@ -82,6 +86,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Translation state management
+let activeTabId = null;
 let isTranslating = false;
 let isTranslated = false;
 let translationState = 'RawText';

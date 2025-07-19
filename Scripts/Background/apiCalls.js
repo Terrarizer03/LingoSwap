@@ -1,9 +1,25 @@
 // THIS CODE IS ACTUALLY BULLSHIT I UNDERSTAND LIKE 2% OF IT FUCK
 
+// Store abort controllers for each tab
+let tabAbortControllers = {};
+
 // Listen for tab updates (including reloads)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'loading' && tabTranslationStates[tabId]) { // Check if the tab is reloading or has completed loading
-        console.log(`Tab ${tabId} is reloading, clearing translation state`); // Clear translation state for this tab
+        console.log(`Tab ${tabId} is reloading, clearing translation state`);
+
+        chrome.runtime.sendMessage({
+            action: 'reloading'
+        }).catch({})
+        
+        // Abort ongoing translation for this tab
+        if (tabAbortControllers[tabId]) {
+            console.log(`Aborting translation for tab ${tabId}`);
+            tabAbortControllers[tabId].abort();
+            delete tabAbortControllers[tabId];
+        }
+        
+        // Clear translation state for this tab
         delete tabTranslationStates[tabId];
         if (currentTranslationState.isTranslating && currentTranslationState.tabId === tabId) { // Reset global translation state if this was the active translating tab
             // I should add helper functions to help with my mental state :)
@@ -31,7 +47,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }, () => {
                 // Forward the translate message to content script
                 chrome.tabs.sendMessage(tabId, {
-                    action: 'translate'
+                    action: 'translate',
+                    tabId: tabId
                 }, (response) => {
                     if (chrome.runtime.lastError) {
                         sendResponse({ 
@@ -85,12 +102,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             try {
+                // Create abort controller for this tab
+                const abortController = new AbortController();
+                tabAbortControllers[tabId] = abortController;
 
                 // Send Initial Progress State 
                 sendProgressUpdate(0, textArray.length, tabId);
 
-                // Perform translation
-                const translatedArray = await performTranslation(textArray, targetLang, apiKey, tabId);
+                // Perform translation with abort controller
+                const translatedArray = await performTranslation(textArray, targetLang, apiKey, tabId, abortController);
+                
+                // Clean up abort controller if translation completed successfully
+                delete tabAbortControllers[tabId];
                 
                 // Send results back to the content script
                 chrome.tabs.sendMessage(tabId, {
@@ -110,10 +133,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 
             } catch (error) {
                 console.error('Translation error:', error);
-                sendResponse({ 
-                    success: false, 
-                    error: error.message 
-                });
+                
+                // Clean up abort controller on error
+                delete tabAbortControllers[tabId];
+                
+                // Check if error was due to abortion
+                if (error.name === 'AbortError') {
+                    console.log(`Translation aborted for tab ${tabId}`);
+                    
+                    // Reset global translation state
+                    currentTranslationState.isTranslating = false;
+                    currentTranslationState.totalItems = 0;
+                    currentTranslationState.translatedItems = 0;
+                    currentTranslationState.remainingItems = 0;
+                    currentTranslationState.tabId = null;
+                    
+                    // Send progress update to popup to reflect cancellation
+                    sendProgressUpdate(0, 0, tabId);
+                    
+                    sendResponse({ 
+                        success: false, 
+                        error: 'Translation was cancelled' 
+                    });
+                } else {
+                    sendResponse({ 
+                        success: false, 
+                        error: error.message 
+                    });
+                }
             }
         });
         
@@ -169,8 +216,8 @@ function sendProgressUpdate(translated, remaining, tabId) {
     }).catch(error => console.error(`Failed to send progress update for tab ${tabId}:`, error));;
 };
 
-// Enhanced translation function with chunking support
-async function performTranslation(textArray, targetLang, apiKey, tabId) {
+// Enhanced translation function with chunking support and abort controller
+async function performTranslation(textArray, targetLang, apiKey, tabId, abortController) {
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
     const CHUNK_SIZE = 100;
@@ -178,7 +225,7 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
     
     // If array is small enough, use original method
     if (textArray.length <= CHUNK_SIZE) {
-        const result = await translateTextChunk(textArray, targetLang, apiKey, 0);
+        const result = await translateTextChunk(textArray, targetLang, apiKey, 0, 1, null, abortController);
         // Send final progress for single chunk
         sendProgressUpdate(textArray.length, 0, tabId);
         return result;
@@ -192,13 +239,18 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
     const allTranslatedChunks = [];
     
     for (let i = 0; i < chunks.length; i += CONCURRENT_REQUESTS) {
+        // Check if translation was aborted
+        if (abortController.signal.aborted) {
+            throw new Error('Translation aborted');
+        }
+        
         const batchChunks = chunks.slice(i, i + CONCURRENT_REQUESTS);
         console.log(`Processing batch ${Math.floor(i / CONCURRENT_REQUESTS) + 1}: chunks ${i + 1}-${Math.min(i + CONCURRENT_REQUESTS, chunks.length)}`);
         
         // Create promises for concurrent translation
         const batchPromises = batchChunks.map((chunk, batchIndex) => {
             const globalChunkIndex = i + batchIndex;
-            return translateTextChunk(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray)
+            return translateTextChunk(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray, abortController)
                 .then(result => { // All this bs just to send progress updates? Fuck
                     // Update progress immediately when this chunk completes
                     allTranslatedChunks.push(result);
@@ -213,11 +265,16 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
             // Wait for current batch to complete
             const batchResults = await Promise.all(batchPromises);
 
-            // Add delay between batches to avoid rate limiting
+            // Add delay between batches to avoid rate limiting (with abort check)
             if (i + CONCURRENT_REQUESTS < chunks.length) {
-                await delay(1000); // 1 second delay between batches
+                await delay(1000, abortController); // 1 second delay between batches
             }
         } catch (error) {
+            // If it's an abort error, re-throw it
+            if (error.name === 'AbortError' || error.message === 'Translation aborted') {
+                throw error;
+            }
+            
             console.error(`Error in batch ${Math.floor(i / CONCURRENT_REQUESTS) + 1}:`, error);
             // Continue with remaining batches, mark failed chunks
             const failedResults = batchChunks.map((chunk, batchIndex) => 
@@ -234,8 +291,8 @@ async function performTranslation(textArray, targetLang, apiKey, tabId) {
     return finalTranslatedArray;
 }
 
-// Merged Translate Text Function
-async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null) {
+// Merged Translate Text Function with abort controller
+async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null, abortController) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
     // Determines which prompt to use, single chunk prompt or multi chunk prompt
@@ -263,7 +320,8 @@ async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0,
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: abortController.signal // Add abort signal to fetch
         });
 
         if (!response.ok) {
@@ -286,6 +344,12 @@ async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0,
         return translatedArray;
         
     } catch (error) {
+        // Check if it's an abort error
+        if (error.name === 'AbortError') {
+            console.log(`Translation chunk ${chunkIndex + 1} aborted`);
+            throw error;
+        }
+        
         console.error(`Gemini API error${totalChunks > 1 ? ` for chunk ${chunkIndex + 1}` : ''}:`, error);
         return textArray.map((text, index) => `[Translation Error${totalChunks > 1 ? ` - Chunk ${chunkIndex + 1}, Item ${index + 1}` : ''}] ${text}`);
     }
@@ -336,8 +400,19 @@ function chunkArray(array, chunkSize) {
     return chunks;
 }
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+// Enhanced delay function with abort controller support
+function delay(ms, abortController) {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, ms);
+        
+        // Listen for abort signal
+        if (abortController) {
+            abortController.signal.addEventListener('abort', () => {
+                clearTimeout(timeout);
+                reject(new Error('Translation aborted'));
+            });
+        }
+    });
 }
 
 // Enhanced parsing with better error handling

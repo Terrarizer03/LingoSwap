@@ -7,12 +7,14 @@ const settingsPanel = document.getElementById('settings-panel');
 const homePanel = document.getElementById('home-panel');
 
 // Check for settings-icon clicked
+// if clicked, toggles each panels visibility
 settingsBtn.addEventListener('click', () => {
     settingsPanel.classList.toggle('hidden');
     homePanel.classList.toggle('hidden');
 });
 
 // Check for darkmode-icon clicked
+// on click, popup turns darkmode and preference is saved in chrome's local storage
 darkModeBtn.addEventListener('click', () => {
     const isDark = document.body.classList.toggle('dark-mode');
     document.getElementById('light-mode-icon').classList.toggle('hidden', !isDark);
@@ -28,10 +30,13 @@ darkModeBtn.addEventListener('click', () => {
 let isTranslating = false;
 const translateBtn = document.getElementById('translate-btn');
 const showOriginalBtn = document.getElementById('show-original-btn')
-let activeTabId = null;
+const targetLangSelect = document.getElementById('target-lang'); 
+const saveAPIBtn = document.getElementById('saveAPI');
 
 // On DOM loaded
 document.addEventListener("DOMContentLoaded", () => {
+    // loads the target language and dark mode in chrome local 
+    // storage when popup is opened and applies them to popup
     chrome.storage.local.get(["targetLang", "darkMode"], (result) => {
         if (result.targetLang) {
             document.getElementById('target-lang').value = result.targetLang;
@@ -44,82 +49,125 @@ document.addEventListener("DOMContentLoaded", () => {
         }    
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         // Sending messages to fuck all, bro needs to refactor ong
-            const currentTabId = tabs[0].id;
-            activeTabId = currentTabId
+        const currentTabId = tabs[0].id;
+        activeTabId = currentTabId
 
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: 'getTranslationState'
-            }, (response) => {
-                if (response) {
-                    updateButtonState(response.isTranslated, response.translationState);
-                }
-            });
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: 'translatingOrNot'
-            }, (response) => {
-                if (response && response.translationStatus) {
-                    translateBtn.textContent = "Translating...";
-                    addLoadingState(translateBtn, true);
-                } else {
-                    translateBtn.textContent = "Translate";
-                    addLoadingState(translateBtn, false);
-                }
-            });
-            chrome.runtime.sendMessage({
-                action: 'getTranslationProgress',
-                tabId: currentTabId
-            }, (response) => {
-                if (response && response.success) {
-                    if (response.totalItems > 0) {
-                        updateTranslationReport({
-                            translated: response.translated,
-                            remaining: response.remaining
-                        })
-                    }
-                }
+        // on dom load, grabs translation state from content script and updates the 
+        // Show Original button based on isTranslated and translationState
+        chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'getTranslationState'
+        }, (response) => {
+            if (response) {
+                updateButtonState(response.isTranslated, response.translationState);
+            }
+        });
+        // checks if content script is in the middle of translating
+        // and applies the translationStatus to the translateBtn
+        chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'translatingOrNot'
+        }, (response) => {
+            if (response && response.translationStatus) {
+                translateBtn.textContent = "Translating...";
+                addLoadingState(translateBtn, true);
+            } else {
+                translateBtn.textContent = "Translate";
+                addLoadingState(translateBtn, false);
+            }
+        });
+        // gets translation progress from background script and updates
+        // the translation report to the current progress
+        chrome.runtime.sendMessage({
+            action: 'getTranslationProgress',
+            tabId: currentTabId
+        }, (response) => {
+            if (response && response.success) {
+                if (response.totalItems > 0) {
+                    updateTranslationReport({
+                        translated: response.translated,
+                        remaining: response.remaining
+                    })
+                }}
             });
         });
     });
     
 });
 
-// Add message listener to handle translation completion
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+// Message listener for background and content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => { // More messages being sent to narnia. On God I'm boutta crashout
+    // when popup recieves a message that translation is complete, it resets
+    // popup state to normal
     if (message.action === 'translationComplete') {
-        // Reset the UI when translation is complete
-        resetTranslationUI(true);
-        addLoadingState(translateBtn, false)
-        siteTranslated = true;
-        
-        // Update button state - so the show original button is enabled.
-        updateButtonState(true, 'TranslatedText')
-        console.log('Translation completed:', message);
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const currentTabId = tabs[0].id;
+            if (currentTabId !== message.tabId) {
+                console.warn(`Tabs don't match. Function UI won't be called.`)
+                return;
+            }
+
+            // Reset the UI when translation is complete
+            resetTranslationUI(true);
+            addLoadingState(translateBtn, false)
+            
+            // Update button state - so the show original button is enabled.
+            updateButtonState(true, 'TranslatedText')
+            console.log('Translation completed:', message); 
+            
+        });  
     }
     
+    // when site reloads, all states in popup gets reset.
+    if (message.action === 'reloading') {
+        isTranslating = false;
+        resetTranslationUI(false);
+        addLoadingState(translateBtn, false);
+        updateButtonState(false, 'TranslatedText');
+        updateTranslationReport({ translated: 0, remaining: 0 });
+    }
+    
+    // if show original button is clicked and content script returns
+    // toggleComplete, the ShowOriginal button changes state.
     if (message.action === 'toggleComplete') {
-        showOriginalBtn.textContent = 'Done!'
-        setTimeout(() => {
-            showOriginalBtn.disabled = false
-            // Ask content script for the current translation state
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                chrome.tabs.sendMessage(tabs[0].id, {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => { 
+            const currentTabId = tabs[0].id;
+            if (currentTabId !== message.tabId) {
+                console.warn(`Tab's don't match. Function UI won't call.`)
+                return;
+            }
+
+            showOriginalBtn.textContent = 'Done!';
+            setTimeout(() => {
+                showOriginalBtn.disabled = false
+                // Ask content script for the current translation state
+                chrome.tabs.sendMessage(currentTabId, { // Nested messages will be the end of me...
                     action: 'getTranslationState'
                 }, (response) => {
                     if (response) {
                         updateButtonState(response.isTranslated, response.translationState);
                     }
-                });
-            });
-        }, 500)
+                    });
+            }, 500)
+        });    
     }
 
+    // recieves translation progress updates from background script
+    // and updates translation report accordingly
     if (message.action === 'translationProgress') {
-        updateTranslationReport({
-            translated: message.translated,
-            remaining: message.remaining
-        });
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const currentTabId = tabs[0].id;
+            if (currentTabId !== message.tabId) {
+                return;
+            }
+
+            updateTranslationReport({
+                translated: message.translated,
+                remaining: message.remaining
+            });
+        })
     }
 });
+
+/* -------------------- Helper Functions -------------------- */
 
 // Loading state for UX
 function addLoadingState(button, state=false) {
@@ -130,8 +178,8 @@ function addLoadingState(button, state=false) {
     }
 }
 
-// Translation Reports -----------------
-function updateTranslationReport(progress) {
+// helper function for updating translation reports
+function updateTranslationReport(progress) { 
     const translatingDisplay = document.getElementById('translating-count');
     const translatedDisplay = document.getElementById('translated-count');
 
@@ -143,18 +191,15 @@ function updateTranslationReport(progress) {
         translatingDisplay.textContent = progress.remaining || 0;
     }
 }
-// -------------------------------------
 
-// Update button state
+// helper function for updating show original button state
 function updateButtonState(isTranslated, translationState) {
-    const showOriginalBtn = document.getElementById('show-original-btn');
-    
     if (!isTranslated) {
         showOriginalBtn.disabled = true;
         showOriginalBtn.textContent = 'Show Original';
     } else {
         showOriginalBtn.disabled = false;
-        showOriginalBtn.textContent = translationState === 'RawText' ? 'Show Translated' : 'Show Original';
+        showOriginalBtn.textContent = translationState === 'RawText' ? 'Show Translated' : 'Show Original'; // Could've made translationState into a boolean but no, I'm a dumbass.
     }
 }
 
@@ -174,9 +219,12 @@ function resetTranslationUI(showSuccess = false) {
         translateBtn.textContent = "Translate";
     }
 }
+/* ------------------------------------------------------------ */
 
-// Event listeners -------------
-showOriginalBtn.addEventListener('click', async () => {
+/* -------------------- Event listeners [ a.k.a random hot mess that I hate >:( ] -------------------- */
+// On click ShowOriginal will send a message to content script
+// to toggle original and translated text
+showOriginalBtn.addEventListener('click', async () => {  
     if (isTranslating) {
         alert("No translations yet, please wait...");
         return;
@@ -189,7 +237,8 @@ showOriginalBtn.addEventListener('click', async () => {
 
         // Use tabs.sendMessage to talk directly to the content script
         chrome.tabs.sendMessage(tab.id, {
-            action: 'showOriginal'
+            action: 'showOriginal',
+            tabId: tab.id
         }, (response) => {
             console.log('Toggled original/translated text:', response);
         });
@@ -200,12 +249,19 @@ showOriginalBtn.addEventListener('click', async () => {
     }
 });
 
-document.getElementById('target-lang').addEventListener('change', (event) => {
+// On language select change, the targetlanguage will be saved to
+// chrome's local storage for later use
+targetLangSelect.addEventListener('change', (event) => {
     const targetLang = event.target.value;
 
     chrome.storage.local.set({ targetLang: targetLang });
 });
 
+// main logic, on translateBtn click sends message to content script which sends
+// a message to background script to start translation, which sends a message again to content
+// script for the extracted text, which sends back the extracted text to background script, which lastly sends
+// the translated text back to content script to replace the DOM text with the translated text. 
+// Fuck.
 translateBtn.addEventListener('click', async () => {
     if (isTranslating) {
         alert("Translation is already in progress. Please wait...");
@@ -218,7 +274,7 @@ translateBtn.addEventListener('click', async () => {
         // Check current translation state before proceeding
         const response = await new Promise((resolve, reject) => {
             chrome.tabs.sendMessage(tab.id, {
-                action: 'getTranslationState'
+                action: 'getTranslationState',
             }, (response) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
@@ -231,10 +287,10 @@ translateBtn.addEventListener('click', async () => {
         // If site is already translated, show alert and return
         if (response && response.isTranslated) {
             translateBtn.textContent = "Already Translated";
-            translateBtn.disable = true;
+            translateBtn.disabled = true;
             setTimeout(() => {
                 translateBtn.textContent = "Translate";
-                translateBtn.disable = false;
+                translateBtn.disabled = false;
             }, 750);
             return;
         }
@@ -269,7 +325,8 @@ translateBtn.addEventListener('click', async () => {
     }
 });
 
-document.getElementById('saveAPI').addEventListener('click', () => {
+// Saves the api key when saveAPI button is clicked
+saveAPIBtn.addEventListener('click', () => {
     const apiKey = document.getElementById('inputAPI').value;
     chrome.storage.local.set({ apiKey: apiKey });
 });
