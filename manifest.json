@@ -24,10 +24,9 @@
     "permissions": [
         "activeTab",
         "storage",
-        "tabs",
-        "scripting"
+        "tabs"
     ],
-    "host_permissions": ["<all_urls>"],
+    "host_permissions": ["https://generativelanguage.googleapis.com/*"],
     "background": {
         "service_worker": "Scripts/Background/apiCalls.js"
     }

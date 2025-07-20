@@ -4,6 +4,8 @@
 const settingsBtn = document.getElementById('settings-btn');
 const darkModeBtn = document.getElementById('dark-mode-btn');
 const settingsPanel = document.getElementById('settings-panel');
+const currentVersion = document.getElementById('header-version');
+const headerTitle = document.getElementById('header-extension');
 const homePanel = document.getElementById('home-panel');
 
 // Check for settings-icon clicked
@@ -11,6 +13,8 @@ const homePanel = document.getElementById('home-panel');
 settingsBtn.addEventListener('click', () => {
     settingsPanel.classList.toggle('hidden');
     homePanel.classList.toggle('hidden');
+    headerTitle.classList.toggle('hidden');
+    currentVersion.classList.toggle('hidden');
 });
 
 // Check for darkmode-icon clicked
@@ -327,6 +331,27 @@ translateBtn.addEventListener('click', async () => {
 
 // Saves the api key when saveAPI button is clicked
 saveAPIBtn.addEventListener('click', () => {
-    const apiKey = document.getElementById('inputAPI').value;
-    chrome.storage.local.set({ apiKey: apiKey });
+    const apiKey = document.getElementById('inputAPI').value.trim();
+    // Validate API key
+    if (!apiKey) {
+        alert('Please enter a valid API key.');
+        return;
+    }
+    // Optional: Add more specific validation (e.g., regex for expected format)
+    if (!/^[a-zA-Z0-9_-]{10,100}$/.test(apiKey)) {
+        alert('Invalid API key format. Use alphanumeric characters, underscores, or hyphens.');
+        return;
+    }
+    chrome.runtime.sendMessage({
+        action: 'saveAPIKey',
+        apiKey: apiKey
+    }, (response) => {
+        if (response && response.success) {
+            alert('API Key saved successfully.');
+            document.getElementById('inputAPI').value = ''; // Clear input after saving
+        } else {
+            alert('Failed to save API key: ' + (response?.error || 'Unknown error'));
+        }
+        console.log('API Key save response:', response);
+    });
 });

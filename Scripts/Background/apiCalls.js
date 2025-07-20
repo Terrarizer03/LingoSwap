@@ -10,7 +10,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
         chrome.runtime.sendMessage({
             action: 'reloading'
-        }).catch({})
+        })
         
         // Abort ongoing translation for this tab
         if (tabAbortControllers[tabId]) {
@@ -61,6 +61,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 });
             });
         }) 
+        return true;
+    }
+
+    if (message.action === 'saveAPIKey') {
+        const apiKey = message.apiKey;
+        // Validate API key format (adjust regex based on Gemini API key format)
+        if (!apiKey || !/^[a-zA-Z0-9_-]{30,40}$/.test(apiKey)) {
+            sendResponse({
+                success: false,
+                message: 'Invalid API key format'
+            });
+            return true;
+        }
+
+        validateApiKey(apiKey)
+
+        chrome.storage.local.set({ apiKey: apiKey }, () => {
+            if (chrome.runtime.lastError) {
+                sendResponse({
+                    success: false,
+                    message: 'Failed to save API key: ' + chrome.runtime.lastError.message
+                });
+            } else {
+                sendResponse({
+                    success: true,
+                    message: 'API key saved successfully'
+                });
+            }
+        });
+
         return true;
     }
 
@@ -199,6 +229,18 @@ let currentTranslationState = {
     translatedItems: 0,
     remainingItems: 0
 };
+
+// Helper function to check if API key is valid
+function validateApiKey(apiKey) {
+    if (!apiKey || typeof apiKey !== 'string') {
+        throw new Error('Invalid API key format');
+    }
+    if (apiKey.length < 10 || apiKey.length > 100) {
+        throw new Error('API key length is suspicious');
+    }
+    // Add more validation as needed
+    return true;
+}
 
 // Function for Sending Progress to Popup
 function sendProgressUpdate(translated, remaining, tabId) {
