@@ -38,11 +38,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'translate') {
         currentTranslationState.isTranslating = true;
         const { tabId } = message;
-        chrome.storage.local.get(['targetLang']).then(result => {
+        chrome.storage.session.get(['targetLang']).then(result => {
             const targetLang  = result.targetLang || 'English';
             console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
             // Store the translation request details for later use
-            chrome.storage.local.set({ 
+            chrome.storage.session.set({ 
                 currentTranslationRequest: { tabId, targetLang } 
             }, () => {
                 // Forward the translate message to content script
@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         validateApiKey(apiKey)
 
-        chrome.storage.local.set({ apiKey: apiKey }, () => {
+        chrome.storage.session.set({ apiKey: apiKey }, () => {
             if (chrome.runtime.lastError) {
                 sendResponse({
                     success: false,
@@ -110,7 +110,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log(`Received ${textArray.length} texts to translate from tab ${tabId}`);
 
         // Get API key and translation request details
-        chrome.storage.local.get(['apiKey', 'currentTranslationRequest', 'targetLang'], async (result) => {
+        chrome.storage.session.get(['apiKey', 'currentTranslationRequest', 'targetLang'], async (result) => {
             const apiKey = result.apiKey || '';
             const translationRequest = result.currentTranslationRequest;
             const targetLang = result.targetLang || 'English'; // Default to English if not set

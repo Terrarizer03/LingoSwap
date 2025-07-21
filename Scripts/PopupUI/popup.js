@@ -122,11 +122,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => { // Mor
     
     // when site reloads, all states in popup gets reset.
     if (message.action === 'reloading') {
-        isTranslating = false;
-        resetTranslationUI(false);
-        addLoadingState(translateBtn, false);
-        updateButtonState(false, 'TranslatedText');
-        updateTranslationReport({ translated: 0, remaining: 0 });
+        reloadUIState()
     }
     
     // if show original button is clicked and content script returns
@@ -180,6 +176,14 @@ function addLoadingState(button, state=false) {
     } else {
         button.classList.remove('loading');
     }
+}
+
+function reloadUIState() {
+    isTranslating = false;
+    resetTranslationUI(false);
+    addLoadingState(translateBtn, false);
+    updateButtonState(false, 'TranslatedText');
+    updateTranslationReport({ translated: 0, remaining: 0 });
 }
 
 // helper function for updating translation reports
@@ -258,7 +262,7 @@ showOriginalBtn.addEventListener('click', async () => {
 targetLangSelect.addEventListener('change', (event) => {
     const targetLang = event.target.value;
 
-    chrome.storage.local.set({ targetLang: targetLang });
+    chrome.storage.session.set({ targetLang: targetLang });
 });
 
 // main logic, on translateBtn click sends message to content script which sends
