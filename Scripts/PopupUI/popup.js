@@ -41,16 +41,20 @@ const saveAPIBtn = document.getElementById('saveAPI');
 document.addEventListener("DOMContentLoaded", () => {
     // loads the target language and dark mode in chrome local 
     // storage when popup is opened and applies them to popup
-    chrome.storage.local.get(["targetLang", "darkMode"], (result) => {
-        if (result.targetLang) {
-            document.getElementById('target-lang').value = result.targetLang;
-        }
-
+    chrome.storage.local.get(["darkMode"], (result) => {
         if (result.darkMode) {
             document.body.classList.add('dark-mode');
             document.getElementById('light-mode-icon').classList.remove('hidden');
             document.getElementById('dark-mode-icon').classList.add('hidden');
-        }    
+        }
+    });
+
+    chrome.storage.session.get(["targetLang"], (result) => {
+        if (result.targetLang) {
+            document.getElementById('target-lang').value = result.targetLang || 'English';
+        }
+    });
+
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         // Sending messages to fuck all, bro needs to refactor ong
         const currentTabId = tabs[0].id;
@@ -93,8 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }}
             });
         });
-    });
-    
 });
 
 // Message listener for background and content script
@@ -118,6 +120,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => { // Mor
             console.log('Translation completed:', message); 
             
         });  
+    }
+
+    if (message.action === 'APIKeyError') {
+        addLoadingState(translateBtn, false)
+        addShakeAnimation(translateBtn)
+        translateBtn.textContent = "No API Key!";
+        translateBtn.disabled = true;
+        setTimeout(() => {
+            translateBtn.textContent = "Translate";
+            translateBtn.disabled = false;
+            reloadUIState()
+        }, 1000)
+        
     }
     
     // when site reloads, all states in popup gets reset.
@@ -176,6 +191,13 @@ function addLoadingState(button, state=false) {
     } else {
         button.classList.remove('loading');
     }
+}
+
+function addShakeAnimation(button) {
+    button.classList.add('shake');
+    setTimeout(() => {
+        button.classList.remove('shake')
+    }, 100);
 }
 
 function reloadUIState() {
@@ -294,6 +316,7 @@ translateBtn.addEventListener('click', async () => {
 
         // If site is already translated, show alert and return
         if (response && response.isTranslated) {
+            addShakeAnimation(translateBtn)
             translateBtn.textContent = "Already Translated";
             translateBtn.disabled = true;
             setTimeout(() => {
@@ -303,27 +326,34 @@ translateBtn.addEventListener('click', async () => {
             return;
         }
 
-        // Proceed with translation
-        addLoadingState(translateBtn, true);
-        isTranslating = true;
-        translateBtn.disabled = true;
-        translateBtn.textContent = "Translating...";
-
         chrome.runtime.sendMessage({
             action: 'translate',
             tabId: tab.id,
         }, (response) => {
             console.log('Translation initiated:', response);
-        });
-
-        // Fallback timeout
-        setTimeout(() => {
-            if (isTranslating) {
+            
+            if (chrome.runtime.lastError || !response || response.error) {
+                console.error('Translation failed to start:', chrome.runtime.lastError || response.error);
                 resetTranslationUI(false);
                 addLoadingState(translateBtn, false);
-                console.log('Translation reset by timeout fallback');
+                return;
             }
-        }, 45000);
+
+            // Only add loading state if translation truly starts
+            addLoadingState(translateBtn, true);
+            isTranslating = true;
+            translateBtn.disabled = true;
+            translateBtn.textContent = "Translating...";
+
+            // Fallback timeout
+            setTimeout(() => {
+                if (isTranslating) {
+                    resetTranslationUI(false);
+                    addLoadingState(translateBtn, false);
+                    console.log('Translation reset by timeout fallback');
+                }
+            }, 45000);
+        });
 
     } catch (error) {
         console.error('Error:', error);

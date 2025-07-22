@@ -98,16 +98,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'getTextToTranslate') {
         const textArray = message.textArray;
         const tabId = sender.tab.id;
-        
-        // Initialize state for this tab
-        tabTranslationStates[tabId] = {
-            isTranslating: true,
-            totalItems: textArray.length,
-            translatedItems: 0,
-            remainingItems: textArray.length
-        };
-        
-        console.log(`Received ${textArray.length} texts to translate from tab ${tabId}`);
 
         // Get API key and translation request details
         chrome.storage.session.get(['apiKey', 'currentTranslationRequest', 'targetLang'], async (result) => {
@@ -116,6 +106,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const targetLang = result.targetLang || 'English'; // Default to English if not set
             
             if (!apiKey) {
+                chrome.runtime.sendMessage({
+                    action: 'APIKeyError',
+                });
+
                 sendResponse({ 
                     success: false, 
                     message: 'API key not found. Please set your API key first.' 
@@ -130,6 +124,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 });
                 return;
             }
+
+            // Initialize state for this tab
+            tabTranslationStates[tabId] = {
+                isTranslating: true,
+                totalItems: textArray.length,
+                translatedItems: 0,
+                remainingItems: textArray.length
+            };
+            
+            console.log(`Received ${textArray.length} texts to translate from tab ${tabId}`);
 
             try {
                 // Create abort controller for this tab
@@ -229,6 +233,18 @@ let currentTranslationState = {
     translatedItems: 0,
     remainingItems: 0
 };
+
+function generateEncryptionKey() {
+    
+}
+
+function encryptKey(apiKey) {
+
+}
+
+function decryptKey(apiKey) {
+    
+}
 
 // Helper function to check if API key is valid
 function validateApiKey(apiKey) {

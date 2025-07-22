@@ -250,9 +250,9 @@ async function testTranslation() {
             if (response && response.success) {
                 console.log('Text elements sent for translation:', texts.length);
             } else {
-                console.error('Failed to send text for translation:', response?.error);
                 // Reset state on failure
                 isTranslated = false;
+                isTranslating = false;
                 originalTexts = [];
             }
         });
