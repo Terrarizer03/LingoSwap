@@ -14,7 +14,7 @@
     },
     "content_scripts": [
         {
-            "js": ["Scripts/Background/ContentScript/textTranslation.js"],
+            "js": ["Scripts/ContentScript/textTranslation.js"],
             "matches": ["<all_urls>"]
         }
     ],
