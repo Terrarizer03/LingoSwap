@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (response) {
                 updateButtonState(response.isTranslated, response.translationState);
                 translatedTextFinished = response.textLength;
-                siteTranslated = response.isTranslated; // had to refactor 1/10th of the code base just to get this shit working (Nevermind doesn't FUCKING work)
+                siteTranslated = response.isTranslated; // had to refactor 1/10th of the code base just to get this shit working (finally working bruh)
                 // gets translation progress from background script and updates
                 // the translation report to the current progress
                 if (!siteTranslated) {
@@ -93,8 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     })
                 }
             };
-            })
-        });
+        })
         // checks if content script is in the middle of translating
         // and applies the translationStatus to the translateBtn
         chrome.tabs.sendMessage(tabs[0].id, {
@@ -108,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 addLoadingState(translateBtn, false);
             }
         });
+    });
 });
 
 // Message listener for background and content script
