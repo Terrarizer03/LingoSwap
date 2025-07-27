@@ -17,7 +17,7 @@ Where can this extension be usable?:
 - It can be used in Chrome, all Chromium-based browsers and other browser types that support Chrome Extensions or have extensions of their own.
 
 Why create this extension?:
-- The creation of this extension stems from my love of light novels. I read light novels extremely often, but it frustrated me that I couldn’t read untranslated chapters of light novels from of different language. And it certainly didn’t help when translating using Google Translate or any translation software as the output generated would always be confusing or downright unreadable. Thus, after a bit of thinking, I deduced that using AI would be the right solution.
+- The creation of this extension stems from my love of light novels. I read light novels extremely often, but it frustrated me that I couldn’t read untranslated chapters of light novels from different languages. And it certainly didn’t help when translating using Google Translate or any translation software as the output generated would always be confusing or downright unreadable. Thus, after a bit of thinking, I deduced that using AI would be the right solution.
 
 Who is the target for this extension?:
 - The target audience for this extension are mainly light novel readers like me, people who want more accurate translations on text from websites, journalists in need of accurate information on articles, and so on.
@@ -26,4 +26,4 @@ How does it solve the specified problem(s)?:
 - This extension is built to use AI as it was intended to do. ChatBots are built for conversation, thus it has much higher accuracy when translating different languages, which helps in retaining the key concepts, ideas, and context of the text.
 
 How it works:
-- When a webpage opens, a script is sent and extracts every HTML tag with text and text nodes. These tags are then pushed into an array, which is then sent to an AI to be translated. Once the AI returns the translated text as an Array, it then replaces the old text with the new, translated one.
+- When a webpage opens, a script is sent and extracts every HTML tag with text and text nodes. These tags are then pushed into an array, which is then sent to an AI to be translated. Once the AI returns the translated text as an Array, it replaces the old text with the new, translated one.

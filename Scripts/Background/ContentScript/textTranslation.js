@@ -28,6 +28,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'updateDOM') {
         console.log('Received translated text from background');
         const translatedText = message.translatedText;
+        textLength = message.textLength;
         
         try {
             // Get the current elements (should match the ones we sent for translation)
@@ -38,7 +39,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             isTranslated = true;
             chrome.runtime.sendMessage({
                 action: 'translationComplete',
-                tabId: activeTabId
+                tabId: activeTabId,
+                translationState: isTranslated,
+                textLength: textLength
             }); // Notify popup that translation is complete
             console.log('DOM updated with translations');
             sendResponse({ success: true });
@@ -81,11 +84,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     if (message.action === 'getTranslationState') {
-        sendResponse({ isTranslated, translationState })
+        sendResponse({ isTranslated, translationState, textLength })
     }
 });
 
 // Translation state management
+let textLength = null;
 let activeTabId = null;
 let isTranslating = false;
 let isTranslated = false;
@@ -103,7 +107,7 @@ function getFilteredTextElements(root) {
                 node: document.head.querySelector('title'), // Still store the element node for consistency
                 type: 'page-title',
                 originalText: document.title,
-                trimmedText: document.title.trim(),
+                trimmedText: sanitizeText(document.title.trim()),
                 leadingWhitespace: document.title.match(/^\s*/)[0],
                 trailingWhitespace: document.title.match(/\s*$/)[0]
             });
@@ -117,7 +121,7 @@ function getFilteredTextElements(root) {
                 node: elem,
                 type: type,
                 originalText: value,
-                trimmedText: value.trim(),
+                trimmedText: sanitizeText(value.trim()),
                 attribute: attrName,
                 leadingWhitespace: value.match(/^\s*/)[0],
                 trailingWhitespace: value.match(/\s*$/)[0]
@@ -126,13 +130,17 @@ function getFilteredTextElements(root) {
     }
 
     function move(elem) {
+        // Skip svg tags
+        if (elem.closest && elem.closest('svg')) return;
+        
         // Skip script, iframe, and style tags
-        const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME'])
+        const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'NOSCRIPT', 'OBJECT', 'EMBED', 'CANVAS']);
         if (elem.tagName && SKIPPED_TAGS.has(elem.tagName.toUpperCase())) return;
 
         // If element is hidden, skip it
         if (elem.nodeType === Node.ELEMENT_NODE) {
             const computedStyle = getComputedStyle(elem);
+            if (elem.isContentEditable) return;
             if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') return;
         }
 
@@ -148,19 +156,33 @@ function getFilteredTextElements(root) {
                 const trimmedText = originalText.trim();
                 
                 if (trimmedText !== "" && shouldIncludeText(trimmedText)) {
+                    const leadingMatch = originalText.match(/^\s*/);
+                    const trailingMatch = originalText.match(/\s*$/);
                     elements.push({
                         node: node,
                         type: 'text',
                         originalText: originalText, // Store original text with all spacing
-                        trimmedText: trimmedText,   // Store trimmed text for translation
+                        trimmedText: sanitizeText(trimmedText),   // Store trimmed text for translation
                         // Store leading and trailing whitespace patterns
-                        leadingWhitespace: originalText.match(/^\s*/)[0],
-                        trailingWhitespace: originalText.match(/\s*$/)[0]
+                        leadingWhitespace: leadingMatch ? leadingMatch[0] : '',
+                        trailingWhitespace: trailingMatch ? trailingMatch[0] : ''
                     });
                 }
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 move(node);
             }
+        });
+    }
+
+    function sanitizeText(text) {
+        return text.replace(/[<>&"']/g, function(match) {
+            return {
+                '<': '&lt;',
+                '>': '&gt;',
+                '&': '&amp;',
+                '"': '&quot;',
+                "'": '&#x27;'
+            }[match];
         });
     }
 

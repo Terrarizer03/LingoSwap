@@ -31,7 +31,9 @@ darkModeBtn.addEventListener('click', () => {
 /* ---------------------- Translate Logic ---------------------- */
 
 // variables -------------
+let siteTranslated = false;
 let isTranslating = false;
+let translatedTextFinished = 0;
 const translateBtn = document.getElementById('translate-btn');
 const showOriginalBtn = document.getElementById('show-original-btn')
 const targetLangSelect = document.getElementById('target-lang'); 
@@ -67,7 +69,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }, (response) => {
             if (response) {
                 updateButtonState(response.isTranslated, response.translationState);
-            }
+                translatedTextFinished = response.textLength;
+                siteTranslated = response.isTranslated; // had to refactor 1/10th of the code base just to get this shit working (Nevermind doesn't FUCKING work)
+                // gets translation progress from background script and updates
+                // the translation report to the current progress
+                if (!siteTranslated) {
+                    chrome.runtime.sendMessage({
+                        action: 'getTranslationProgress',
+                        tabId: currentTabId
+                    }, (response) => {
+                        if (response && response.success) {
+                            if (response.totalItems > 0) {
+                                updateTranslationReport({
+                                    translated: response.translated,
+                                    remaining: response.remaining
+                                })
+                            }}
+                    });
+                } else {
+                    updateTranslationReport({
+                        translated: translatedTextFinished,
+                        remaining: 0
+                    })
+                }
+            };
+            })
         });
         // checks if content script is in the middle of translating
         // and applies the translationStatus to the translateBtn
@@ -82,21 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 addLoadingState(translateBtn, false);
             }
         });
-        // gets translation progress from background script and updates
-        // the translation report to the current progress
-        chrome.runtime.sendMessage({
-            action: 'getTranslationProgress',
-            tabId: currentTabId
-        }, (response) => {
-            if (response && response.success) {
-                if (response.totalItems > 0) {
-                    updateTranslationReport({
-                        translated: response.translated,
-                        remaining: response.remaining
-                    })
-                }}
-            });
-        });
 });
 
 // Message listener for background and content script
@@ -110,13 +121,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => { // Mor
                 console.warn(`Tabs don't match. Function UI won't be called.`)
                 return;
             }
-
+            siteTranslated = message.translationState;
             // Reset the UI when translation is complete
             resetTranslationUI(true);
-            addLoadingState(translateBtn, false)
+            addLoadingState(translateBtn, false);
             
             // Update button state - so the show original button is enabled.
-            updateButtonState(true, 'TranslatedText')
+            updateButtonState(true, 'TranslatedText');
             console.log('Translation completed:', message); 
             
         });  
@@ -265,7 +276,6 @@ showOriginalBtn.addEventListener('click', async () => {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-        // Use tabs.sendMessage to talk directly to the content script
         chrome.tabs.sendMessage(tab.id, {
             action: 'showOriginal',
             tabId: tab.id

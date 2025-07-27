@@ -152,7 +152,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // Send results back to the content script
                 chrome.tabs.sendMessage(tabId, {
                     action: 'updateDOM',
-                    translatedText: translatedArray
+                    translatedText: translatedArray,
+                    textLength: textArray.length
                 }, (response) => {
                     if (chrome.runtime.lastError) {
                         console.error('Error sending translated text to content script:', chrome.runtime.lastError);
@@ -233,18 +234,6 @@ let currentTranslationState = {
     translatedItems: 0,
     remainingItems: 0
 };
-
-function generateEncryptionKey() {
-    
-}
-
-function encryptKey(apiKey) {
-
-}
-
-function decryptKey(apiKey) {
-    
-}
 
 // Helper function to check if API key is valid
 function validateApiKey(apiKey) {
