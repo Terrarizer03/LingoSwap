@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    chrome.storage.session.get(["targetLang"], (result) => {
+    chrome.storage.local.get(["targetLang"], (result) => {
         if (result.targetLang) {
             document.getElementById('target-lang').value = result.targetLang || 'English';
         }
@@ -294,7 +294,7 @@ showOriginalBtn.addEventListener('click', async () => {
 targetLangSelect.addEventListener('change', (event) => {
     const targetLang = event.target.value;
 
-    chrome.storage.session.set({ targetLang: targetLang });
+    chrome.storage.local.set({ targetLang: targetLang });
 });
 
 // main logic, on translateBtn click sends message to content script which sends
