@@ -1,29 +1,51 @@
-# LingoSwap Chrome Extension
+# LingoSwap (Chrome Extension)
 
-A Chrome extension that automatically translates websites / web-pages to the selected language using AI to keep the correct tone, context, and ideas.
+An AI-based Chrome Extension that **translates full websites** using Google’s Gemini LLM — while preserving **tone**, **structure**, and **context** far better than traditional machine translators.
 
-Main focus:
-- To have web-pages load and the extension automatically translate any non-selected language that’s detected to the selected language.
-- To lessen misunderstandings when reading foreign languages in websites.
-- For the translation to be as close in idea to the non-translated text as possible.
+## 🛠 Features:
 
-What problem(s) does this solve?:
-- Traditional translator tools often struggle in maintaining natural fluency and context when translating different languages. Thus, when reading articles, literature, or texts in a foreign language, it becomes easy to misunderstand the original text.
+- **Good Quality Translations** (better than Google Translate)
+- **Live AI Translation** using Gemini (via your API key)
+- **Easy to Use Popup Design** with a sleek dark mode toggle
+- **Preserves structure and formatting** (to an extent)
 
-When do you use this extension?:
-- The extension is used for needing accurate translations from web-pages or websites that are not in the specified language. Do note that this extension cannot translate text inside images.
+## 🛑 Current Limitations:
 
-Where can this extension be usable?:
-- It can be used in Chrome, all Chromium-based browsers and other browser types that support Chrome Extensions or have extensions of their own.
+- **Dynamic Websites** – Cannot reliably translate sites that dynamically change as you go through.
+- **Images** – If the text is in image form, the extension cannot read and translate the text.
+- **Translation Quality** – Due to current constraints, although better than normal translators, it is not at the limit of current AI Translations due to it's dependency on Gemini's Free Tier.
+- **Non-Standard HTML Structures** – Some websites use unconventional HTML structures which may cause extraction or translation issues, resulting in missing or full cancellation of translation.
+- **Large-Scale Websites** – The higher the text count (~500 to ~1000 text elements), the higher the possibility of error, which can result in a translation cancel.
+- **AI Related Issues** – The AI itself could return unexpected outputs causing errors in translation.
 
-Why create this extension?:
-- The creation of this extension stems from my love of light novels. I read light novels extremely often, but it frustrated me that I couldn’t read untranslated chapters of light novels from different languages. And it certainly didn’t help when translating using Google Translate or any translation software as the output generated would always be confusing or downright unreadable. Thus, after a bit of thinking, I deduced that using AI would be the right solution.
+## 🚀 Get Started:
 
-Who is the target for this extension?:
-- The target audience for this extension are mainly light novel readers like me, people who want more accurate translations on text from websites, journalists in need of accurate information on articles, and so on.
+> NOTE: **This extension is currently in alpha and is purely experimental.** Expect bugs and errors.
 
-How does it solve the specified problem(s)?:
-- This extension is built to use AI as it was intended to do. ChatBots are built for conversation, thus it has much higher accuracy when translating different languages, which helps in retaining the key concepts, ideas, and context of the text.
+### 1. Install The Extension
+- Download here! [LingoSwap](nolinkyet) <!-- need a link for this bruh -->
 
-How it works:
-- When a webpage opens, a script is sent and extracts every HTML tag with text and text nodes. These tags are then pushed into an array, which is then sent to an AI to be translated. Once the AI returns the translated text as an Array, it replaces the old text with the new, translated one.
+### 2. Get A Gemini API Key
+Step By Step:
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Click "Create API Key"
+3. Copy the key (keep it private!)
+4. Paste the key into the LingoSwap popup > API Key field
+5. Click Save
+>  Your key is currently stored locally in plaintext, if the key is compromised, please regenerate the key. Encryption coming in future versions.
+
+### 3. Start Translating  
+Go to any website → Open the extension → Click **Translate**
+
+![LingoSwap Popup](Images/popup2.PNG)
+
+## ⚙️ How it works:
+1. LingoSwap extracts visible text nodes from any webpage.
+2. The text is chunked intelligently and sent to Gemini.
+3. Gemini returns natural-sounding translations.
+4. The extension injects the translated text back into the site — preserving layout and spacing.
+
+## 👋 Author
+Terrarizer – STEM Student & Web Developer
+
+📱 Socials: [GitHub](https://github.com/Terrarizer03) • [X/Twitter](https://x.com/Terrarizer_) • [Ko-fi](https://ko-fi.com/terrarizer) • [YouTube](https://www.youtube.com/@terrarizer3) • [Twitch](https://www.twitch.tv/terrarizer_) 
