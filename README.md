@@ -49,7 +49,7 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 ### 1. Install The Extension
 - Download here! [LingoSwap](nolinkyet) (In Progress...) <!-- need a link for this bruh -->
 
-> While the extension isn't published, you can try it locally! Download the project's zip folder, go to [chrome extensions](chrome://extensions/), enable Developer Mode, click "Load Unpacked", and select the downloaded zip folder.
+While the extension isn't published, you can try it locally! Download the project's zip folder, go to [chrome extensions](chrome://extensions/), enable Developer Mode, click "Load Unpacked", and select the downloaded zip folder.
 
 ### 2. Get A Gemini API Key
 Step By Step:
@@ -58,7 +58,7 @@ Step By Step:
 3. Copy the key (keep it private!)
 4. Paste the key into the LingoSwap popup > API Key field
 5. Click Save
->  **WARNING:** Your key is currently stored locally in **plaintext** (no encryption), if the key is compromised, please regenerate the key. Encryption coming in future versions.
+> **WARNING:** Your key is currently stored locally in **plaintext** (no encryption), if the key is compromised, please regenerate the key. Encryption coming in future versions.
 
 ### 3. Start Translating  
 Go to any website → Open the extension → Click **Translate**
