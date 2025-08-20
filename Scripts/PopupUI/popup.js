@@ -43,15 +43,12 @@ const saveAPIBtn = document.getElementById('saveAPI');
 document.addEventListener("DOMContentLoaded", () => {
     // loads the target language and dark mode in chrome local 
     // storage when popup is opened and applies them to popup
-    chrome.storage.local.get(["darkMode"], (result) => {
+    chrome.storage.local.get(["darkMode", "targetLang"], (result) => {
         if (result.darkMode) {
             document.body.classList.add('dark-mode');
             document.getElementById('light-mode-icon').classList.remove('hidden');
             document.getElementById('dark-mode-icon').classList.add('hidden');
         }
-    });
-
-    chrome.storage.local.get(["targetLang"], (result) => {
         if (result.targetLang) {
             document.getElementById('target-lang').value = result.targetLang || 'English';
         }
