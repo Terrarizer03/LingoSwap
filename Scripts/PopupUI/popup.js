@@ -7,6 +7,14 @@ const settingsPanel = document.getElementById('settings-panel');
 const currentVersion = document.getElementById('header-version');
 const headerTitle = document.getElementById('header-extension');
 const homePanel = document.getElementById('home-panel');
+const loadingContainer = document.getElementById('loading-container');
+const mainContainer = document.getElementById('main-container');
+
+// Loading state for containers
+function toggleContainer() {
+    loadingContainer.classList.toggle('hidden');
+    mainContainer.classList.toggle('hidden');
+}
 
 // Check for settings-icon clicked
 // if clicked, toggles each panels visibility
@@ -39,25 +47,31 @@ const showOriginalBtn = document.getElementById('show-original-btn')
 const targetLangSelect = document.getElementById('target-lang'); 
 const saveAPIBtn = document.getElementById('saveAPI');
 
+// On Content Script Injected
+function waitForContentScript(tabId, interval = 100) {
+    return new Promise((resolve) => {
+        const timer = setInterval(() => {
+            chrome.tabs.sendMessage(tabId, { action: 'isInjected' }, (response) => {
+                if (response?.injected) {
+                    console.log("got a response!");
+                    toggleContainer();
+                    clearInterval(timer);
+                    resolve(true);
+                }
+                console.log("no response yet...")
+            });
+        }, interval);
+    });
+}
+
 // On DOM loaded
 document.addEventListener("DOMContentLoaded", () => {
-    // loads the target language and dark mode in chrome local 
-    // storage when popup is opened and applies them to popup
-    chrome.storage.local.get(["darkMode", "targetLang"], (result) => {
-        if (result.darkMode) {
-            document.body.classList.add('dark-mode');
-            document.getElementById('light-mode-icon').classList.remove('hidden');
-            document.getElementById('dark-mode-icon').classList.add('hidden');
-        }
-        if (result.targetLang) {
-            document.getElementById('target-lang').value = result.targetLang || 'English';
-        }
-    });
-
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         // Sending messages to fuck all, bro needs to refactor ong
         const currentTabId = tabs[0].id;
         activeTabId = currentTabId
+
+        await waitForContentScript(activeTabId);
 
         // on dom load, grabs translation state from content script and updates the 
         // Show Original button based on isTranslated and translationState
@@ -104,6 +118,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 addLoadingState(translateBtn, false);
             }
         });
+    });
+
+    // loads the target language and dark mode in chrome local 
+    // storage when popup is opened and applies them to popup
+    chrome.storage.local.get(["darkMode", "targetLang"], (result) => {
+        if (result.darkMode) {
+            document.body.classList.add('dark-mode');
+            document.getElementById('light-mode-icon').classList.remove('hidden');
+            document.getElementById('dark-mode-icon').classList.add('hidden');
+        }
+        if (result.targetLang) {
+            document.getElementById('target-lang').value = result.targetLang || 'English';
+        }
     });
 });
 

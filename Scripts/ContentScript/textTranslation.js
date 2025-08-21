@@ -1,5 +1,14 @@
+// Debug: Log when content script loads
+console.log('Translation content script loaded');
+console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
+
 //Listen for messages from popup via background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "isInjected") {
+        sendResponse({ injected: true })
+        return true;
+    }
+
     if (message.action === 'translate') {
         activeTabId = message.tabId;
         console.log('Received request to get text nodes');
@@ -10,7 +19,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 await testTranslation(); // Wait for the full translation process
                 sendResponse({ success: true, message: 'Translation complete' });
             } catch (err) {
-                sendResponse({ success: false, message: 'Translation failed', error: err.message });
+                sendResponse({ success: false, message: 'Translation failed',    error: err.message });
             }
         })();
 
@@ -403,7 +412,3 @@ function restoreTextToElement(elem, text) {
         console.error(`Error restoring text for element type ${elem.type}:`, error);
     }
 }
-
-// Debug: Log when content script loads
-console.log('Translation content script loaded');
-console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
