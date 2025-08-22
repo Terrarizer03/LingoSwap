@@ -64,18 +64,54 @@ function waitForContentScript(tabId, interval = 100) {
     });
 }
 
+// Language Code map that language detection and options compare.
+const languageCodeMap = {
+    'en': 'English',
+    'zh': 'Chinese',
+    'zh-CN': 'Chinese',
+    'zh-TW': 'Chinese', 
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'tl': 'Filipino',
+    'fil': 'Filipino'
+};
+
+function hideMatchingLanguageOption(detectedLanguageCode) {
+    const targetDropdown = document.getElementById('target-lang');
+    const languageName = languageCodeMap[detectedLanguageCode];
+    
+    if (languageName && targetDropdown) {
+        // Hide the matching option
+        const options = Array.from(targetDropdown.options);
+        options.forEach(option => {
+            if (option.value === languageName) {
+                option.style.display = 'none';
+                console.log(`Hidden ${languageName} option - site is already in this language`);
+            }
+        });
+
+        // Set value to first visible option
+        const firstVisible = options.find(opt => opt.style.display !== 'none');
+        if (firstVisible) {
+            targetDropdown.value = firstVisible.value;
+            chrome.storage.local.set({ targetLang: targetDropdown.value });
+        }
+    }
+}
+
 // On DOM loaded
 document.addEventListener("DOMContentLoaded", () => {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         // Sending messages to fuck all, bro needs to refactor ong
         const currentTabId = tabs[0].id;
         activeTabId = currentTabId
-
-        await waitForContentScript(activeTabId);
+        
+        // Halt all processes (by toggling the container state) until content script sends a message.
+        await waitForContentScript(activeTabId); // FUCK THIS. I FUCKING HATE THIS. NOT BECAUSE IT DOESN'T WORK, BUT BECAUSE IT TOOK ME 30 MINS TO DO THIS. FUCK.
 
         // on dom load, grabs translation state from content script and updates the 
         // Show Original button based on isTranslated and translationState
-        chrome.tabs.sendMessage(tabs[0].id, {
+        chrome.tabs.sendMessage(activeTabId, {
             action: 'getTranslationState'
         }, (response) => {
             if (response) {
@@ -107,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         // checks if content script is in the middle of translating
         // and applies the translationStatus to the translateBtn
-        chrome.tabs.sendMessage(tabs[0].id, {
+        chrome.tabs.sendMessage(activeTabId, {
             action: 'translatingOrNot'
         }, (response) => {
             if (response && response.translationStatus) {
@@ -118,18 +154,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 addLoadingState(translateBtn, false);
             }
         });
+        chrome.tabs.sendMessage(activeTabId, { 
+            action: 'dominantLanguage' 
+        }, (response) => {
+            if (response && response.language) {
+                console.log(`Detected: ${response.language} (${response.confidence}% confidence)`);
+                hideMatchingLanguageOption(response.language);
+            } else if (response && response.error) {
+                console.error('Language detection failed:', response.error);
+            }
+        });
     });
 
     // loads the target language and dark mode in chrome local 
     // storage when popup is opened and applies them to popup
-    chrome.storage.local.get(["darkMode", "targetLang"], (result) => {
+    chrome.storage.local.get(["darkMode"], (result) => {
         if (result.darkMode) {
             document.body.classList.add('dark-mode');
             document.getElementById('light-mode-icon').classList.remove('hidden');
             document.getElementById('dark-mode-icon').classList.add('hidden');
-        }
-        if (result.targetLang) {
-            document.getElementById('target-lang').value = result.targetLang || 'English';
         }
     });
 });
