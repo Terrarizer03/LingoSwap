@@ -81,20 +81,24 @@ function hideMatchingLanguageOption(detectedLanguageCode) {
     const languageName = languageCodeMap[detectedLanguageCode];
     
     if (languageName && targetDropdown) {
+        let foundMatch = false;
         // Hide the matching option
         const options = Array.from(targetDropdown.options);
         options.forEach(option => {
             if (option.value === languageName) {
                 option.style.display = 'none';
+                foundMatch = true;
                 console.log(`Hidden ${languageName} option - site is already in this language`);
             }
         });
 
         // Set value to first visible option
-        const firstVisible = options.find(opt => opt.style.display !== 'none');
-        if (firstVisible) {
-            targetDropdown.value = firstVisible.value;
-            chrome.storage.local.set({ targetLang: targetDropdown.value });
+        if (foundMatch) {
+            const firstVisible = options.find(opt => opt.style.display !== 'none');
+            if (firstVisible) {
+                targetDropdown.value = firstVisible.value;
+                chrome.storage.local.set({ targetLang: targetDropdown.value });
+            }
         }
     }
 }
