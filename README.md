@@ -22,7 +22,6 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 - **Non-Standard HTML Structures** – Some websites use unconventional HTML structures which may cause extraction or translation issues, resulting in missing or full cancellation of translation.
 - **Large-Scale Websites** – The higher the text count (~500 to ~1000 text elements), the higher the possibility of error, which can result in a translation cancel.
 - **AI Related Issues** – The AI itself could return unexpected outputs causing errors in translation.
-- **No Language Detection** – Due to not implementing language detection, there are no fallbacks for translating a website that's already in the target language.
 
 ## Planned Updates & Future Improvements:
 
