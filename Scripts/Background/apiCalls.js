@@ -268,6 +268,7 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
     const CHUNK_SIZE = 100;
+    const CHAR_COUNT = 1500;
     const CONCURRENT_REQUESTS = 2;
     
     // If array is small enough, use original method
@@ -279,11 +280,15 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
     }
     
     // Split into chunks
-    const chunks = chunkArray(textArray, CHUNK_SIZE);
-    console.log(`Split into ${chunks.length} chunks of max ${CHUNK_SIZE} items each`);
+    const chunks = chunkArray(textArray, CHUNK_SIZE, CHAR_COUNT);
+    console.log(`Split into ${chunks.length} chunks`);
+
+    // Calculate chunk lengths for proper indexing
+    const chunksLength = chunks.map(chunk => chunk.length);
     
     // Process chunks in batches with controlled concurrency
-    const allTranslatedChunks = [];
+    const allTranslatedChunks = new Array(chunks.length); // Pre-allocate array with correct size
+    let completedCount = 0;
     
     for (let i = 0; i < chunks.length; i += CONCURRENT_REQUESTS) {
         // Check if translation was aborted
@@ -297,13 +302,17 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
         // Create promises for concurrent translation
         const batchPromises = batchChunks.map((chunk, batchIndex) => {
             const globalChunkIndex = i + batchIndex;
-            return translateTextChunk(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray, abortController)
-                .then(result => { // All this bs just to send progress updates? Fuck
+            return translateTextChunk(chunk, targetLang, apiKey, globalChunkIndex, chunks.length, textArray, abortController, chunksLength)
+                .then(result => {
+                    // Store result at correct index (fixed this stupid bug I've had for ages finally)
+                    allTranslatedChunks[globalChunkIndex] = result;
+                    completedCount++;
+                    
                     // Update progress immediately when this chunk completes
-                    allTranslatedChunks.push(result);
-                    const totalTranslated = allTranslatedChunks.flat().length;
+                    const totalTranslated = completedCount > 0 ? allTranslatedChunks.slice(0, completedCount).flat().length : 0;
                     const totalRemaining = textArray.length - totalTranslated;
                     sendProgressUpdate(totalTranslated, totalRemaining, tabId);
+                    
                     return result;
                 });
         });
@@ -324,10 +333,12 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
             
             console.error(`Error in batch ${Math.floor(i / CONCURRENT_REQUESTS) + 1}:`, error);
             // Continue with remaining batches, mark failed chunks
-            const failedResults = batchChunks.map((chunk, batchIndex) => 
-                chunk.map((text, textIndex) => `[Translation Error - Batch ${i + batchIndex + 1}] ${text}`)
-            );
-            allTranslatedChunks.push(...failedResults);
+            batchChunks.forEach((chunk, batchIndex) => {
+                const globalChunkIndex = i + batchIndex;
+                allTranslatedChunks[globalChunkIndex] = chunk.map((text, textIndex) => 
+                    `[Translation Error - Batch ${globalChunkIndex + 1}] ${text.text}`
+                );
+            });
         }
     }
     
@@ -339,12 +350,12 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
 }
 
 // Merged Translate Text Function with abort controller
-async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null, abortController) {
+async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null, abortController, chunksLength = null) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
     // Determines which prompt to use, single chunk prompt or multi chunk prompt
     const prompt = fullTextArray && totalChunks > 1
-        ? `${buildContextualPrompt(textArray, chunkIndex, totalChunks, fullTextArray, targetLang)}\n\n${textList}`
+        ? `${buildContextualPrompt(textArray, chunkIndex, totalChunks, fullTextArray, targetLang, chunksLength)}\n\n${textList}`
         : `Translate the following text to ${targetLang}. Keep in mind of context, some / a lot of the text in this list are connected to each other. Once finished, return only the translated text in the same format (numbered list), without any additional explanation or commentary:\n\n${textList}`;
 
     const requestBody = {
@@ -403,32 +414,37 @@ async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0,
 }
 
 // Build contextual prompt to help maintain coherence across chunks
-function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang) {
-    const CHUNK_SIZE = 100;
+function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang, chunkLengths) {
     let contextPrompt = `Translate the following text to ${targetLang}. `;
     
     if (totalChunks > 1) {
         contextPrompt += `This is part ${chunkIndex + 1} of ${totalChunks} from a web page. `;
         
+        // Calculate the starting index of the current chunk
+        let currentChunkStartIndex = 0;
+        for (let i = 0; i < chunkIndex; i++) {
+            currentChunkStartIndex += chunkLengths[i];
+        }
+
         // Add context from previous chunk (last few items)
         if (chunkIndex > 0) {
-            const prevChunkStart = Math.max(0, chunkIndex * CHUNK_SIZE - 3);
-            const prevChunkEnd = chunkIndex * CHUNK_SIZE;
+            const prevChunkStart = Math.max(0, currentChunkStartIndex - 3);
+            const prevChunkEnd = currentChunkStartIndex;
             const contextItems = fullTextArray.slice(prevChunkStart, prevChunkEnd);
             
             if (contextItems.length > 0) {
-                contextPrompt += `For context, the previous section ended with: "${contextItems.slice(-2).join(' ')}" `;
+                contextPrompt += `For context, the previous section ended with: "${contextItems.slice(-2).map(item => item.text).join(' ')}" `;
             }
         }
         
         // Add context from next chunk (first few items)
         if (chunkIndex < totalChunks - 1) {
-            const nextChunkStart = (chunkIndex + 1) * CHUNK_SIZE;
+            const nextChunkStart = currentChunkStartIndex + chunkLengths[chunkIndex];
             const nextChunkEnd = Math.min(fullTextArray.length, nextChunkStart + 3);
             const nextItems = fullTextArray.slice(nextChunkStart, nextChunkEnd);
             
             if (nextItems.length > 0) {
-                contextPrompt += `The next section will begin with: "${nextItems.slice(0, 2).join(' ')}" `;
+                contextPrompt += `The next section will begin with: "${nextItems.slice(0, 2).map(item => item.text).join(' ')}" `;
             }
         }
     }
@@ -439,11 +455,29 @@ function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextAr
 }
 
 // Utility functions
-function chunkArray(array, chunkSize) {
+function chunkArray(array, chunkSize, charCount) {
     const chunks = [];
-    for (let i = 0; i < array.length; i += chunkSize) {
-        chunks.push(array.slice(i, i + chunkSize));
-    }
+    let currentChunk = [];
+    let currentCharCount = 0;
+
+    for (const elem of array) {
+        const elemLength = elem.length;
+
+        currentChunk.push(elem);
+        currentCharCount += elemLength;
+
+        // Check if either chunkSize or charCount limit is exceeded or met
+        if (currentChunk.length >= chunkSize || currentCharCount >= charCount) {
+            chunks.push(currentChunk);
+            currentChunk = [];
+            currentCharCount = 0;
+        }
+    }  
+
+    // If there's anything left that hasn't met the conditions above,
+    // then automatically push to chunks
+    if (currentChunk.length > 0) chunks.push(currentChunk);
+
     return chunks;
 }
 
