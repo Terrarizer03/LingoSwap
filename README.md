@@ -12,7 +12,7 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 
 - **Quick, Easy And High Quality Translations** (Better than Google Translate)
 - **Live AI Translation** using Gemini (via Your API key)
-- **Preserves Structure And Formatting** (To an extent)
+- **Preserves Structure And Formatting** (For most cases)
 
 ## Current Limitations:
 
@@ -27,7 +27,6 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 
 **LingoSwap v1.0.0** | Planned Updates/Improvements:
 
-- **Better Code Chunking** – Adding character count to the chunking code for a more fool-proof chunking logic, this can significantly reduce errors, with a trade-off of a slight increase in API calls.
 - **Smarter Chunk Prompts** – Chaining memory on chunks by asking for a chunk summary at the end of each output and injecting that summary into the start of the next chunk prompt.
 - **Lazy Tab Loading** – Translating only on-screen/can be seen text elements to reduce API calls and improve latency.
 - **Auto-Retry Failed Translations** – When a chunk fails, the extension can automatically retry that chunk after a set time.

@@ -268,7 +268,7 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
     console.log(`Translating ${textArray.length} texts to ${targetLang}`);
     
     const CHUNK_SIZE = 100;
-    const CHAR_COUNT = 1500;
+    const CHAR_COUNT = 1650;
     const CONCURRENT_REQUESTS = 2;
     
     // If array is small enough, use original method
