@@ -47,23 +47,6 @@ const showOriginalBtn = document.getElementById('show-original-btn')
 const targetLangSelect = document.getElementById('target-lang'); 
 const saveAPIBtn = document.getElementById('saveAPI');
 
-// On Content Script Injected
-function waitForContentScript(tabId, interval = 100) {
-    return new Promise((resolve) => {
-        const timer = setInterval(() => {
-            chrome.tabs.sendMessage(tabId, { action: 'isInjected' }, (response) => {
-                if (response?.injected) {
-                    console.log("got a response!");
-                    toggleContainer();
-                    clearInterval(timer);
-                    resolve(true);
-                }
-                console.log("no response yet...")
-            });
-        }, interval);
-    });
-}
-
 // Language Code map that language detection and options compare.
 const languageCodeMap = {
     'en': 'English',
@@ -78,7 +61,7 @@ const languageCodeMap = {
 
 function hideMatchingLanguageOption(detectedLanguageCode) {
     const targetDropdown = document.getElementById('target-lang');
-    const languageName = languageCodeMap[detectedLanguageCode];
+    const languageName = languageCodeMap[detectedLanguageCode] || null;
     
     if (languageName && targetDropdown) {
         let foundMatch = false;
@@ -100,6 +83,8 @@ function hideMatchingLanguageOption(detectedLanguageCode) {
                 chrome.storage.local.set({ targetLang: targetDropdown.value });
             }
         }
+    } else {
+        console.log(`No matching language, all options are available.`)
     }
 }
 
@@ -109,42 +94,65 @@ document.addEventListener("DOMContentLoaded", () => {
         // Sending messages to fuck all, bro needs to refactor ong
         const currentTabId = tabs[0].id;
         activeTabId = currentTabId
-        
+    
+        // await waitForContentScript(activeTabId); 
+
         // Halt all processes (by toggling the container state) until content script sends a message.
-        await waitForContentScript(activeTabId); // FUCK THIS. I FUCKING HATE THIS. NOT BECAUSE IT DOESN'T WORK, BUT BECAUSE IT TOOK ME 30 MINS TO DO THIS. FUCK.
+        const timer = setInterval(async () => {
+            try {
+                const response = await sendContentMessage(activeTabId, { action: 'isInjected' }); // FUCK THIS. I FUCKING HATE THIS. NOT BECAUSE IT DOESN'T WORK, BUT BECAUSE IT TOOK ME 30 MINS TO DO THIS. FUCK.
+                if (response?.injected) {
+                    console.log("got a response!");
+                    toggleContainer();
+                    clearInterval(timer);
+                    resolve(true); // but only valid if this is wrapped in a Promise
+                } else {
+                    console.log("no response yet...");
+                }
+            } catch {
+                console.log("no response yet...");
+            }
+        }, 100);
 
         // on dom load, grabs translation state from content script and updates the 
         // Show Original button based on isTranslated and translationState
-        chrome.tabs.sendMessage(activeTabId, {
-            action: 'getTranslationState'
-        }, (response) => {
-            if (response) {
-                updateButtonState(response.isTranslated, response.translationState);
-                translatedTextFinished = response.textLength;
-                siteTranslated = response.isTranslated; // had to refactor 1/10th of the code base just to get this shit working (finally working bruh)
-                // gets translation progress from background script and updates
-                // the translation report to the current progress
-                if (!siteTranslated) {
-                    chrome.runtime.sendMessage({
-                        action: 'getTranslationProgress',
-                        tabId: currentTabId
-                    }, (response) => {
-                        if (response && response.success) {
-                            if (response.totalItems > 0) {
-                                updateTranslationReport({
-                                    translated: response.translated,
-                                    remaining: response.remaining
-                                })
-                            }}
-                    });
-                } else {
-                    updateTranslationReport({
-                        translated: translatedTextFinished,
-                        remaining: 0
-                    })
-                }
-            };
-        })
+        try {
+            const translationState = await sendContentMessage(activeTabId, { action: 'getTranslationState' });
+
+            if (translationState) {
+                updateButtonState(translationState.isTranslated, translationState.translationState);
+                translatedTextFinished = translationState.textLength;
+                siteTranslated = translationState.isTranslated; // had to refactor 1/10th of the code base just to get this shit working (finally working bruh)
+            }
+
+            console.log("Getting Translation State Successful")
+        } catch (error) {
+            console.error("Getting Translation State Failed", error)
+        }
+        
+        // gets translation progress from background script and updates
+        // the translation report to the current progress
+        if (!siteTranslated) {
+            try {
+                const translationProgress = await sendRuntimeMessage({ action: 'getTranslationProgress', tabId: currentTabId });
+                if (translationProgress && translationProgress.success) {
+                    if (translationProgress.totalItems > 0) {
+                        updateTranslationReport({
+                            translated: translationProgress.translated,
+                            remaining: translationProgress.remaining
+                        })
+                    }
+                };
+            } catch (error) {
+                console.error("Failed in getting translation progress", error);
+            }
+        } else {
+            updateTranslationReport({
+                translated: translatedTextFinished,
+                remaining: 0
+            });
+        }
+
         // checks if content script is in the middle of translating
         // and applies the translationStatus to the translateBtn
         chrome.tabs.sendMessage(activeTabId, {
@@ -266,6 +274,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => { // Mor
 
 /* -------------------- Helper Functions -------------------- */
 
+// Helper function for sending messages to content script
+function sendContentMessage(activeTabId, message) {
+    return new Promise((resolve, reject) => { 
+        chrome.tabs.sendMessage(activeTabId, message,  (response) => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(response);
+            }
+        });
+    });
+}
+
+// Helper function for sending messages to background script
+function sendRuntimeMessage(message) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(response);
+            }
+        })
+    })
+}
+
 // Loading state for UX
 function addLoadingState(button, state=false) {
     if (state) {
@@ -383,17 +417,7 @@ translateBtn.addEventListener('click', async () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
         // Check current translation state before proceeding
-        const response = await new Promise((resolve, reject) => {
-            chrome.tabs.sendMessage(tab.id, {
-                action: 'getTranslationState',
-            }, (response) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    resolve(response);
-                }
-            });
-        });
+        const response = await sendContentMessage(tab.id, { action: 'getTranslationState' });
 
         // If site is already translated, show alert and return
         if (response && response.isTranslated) {
@@ -407,19 +431,15 @@ translateBtn.addEventListener('click', async () => {
             return;
         }
 
-        chrome.runtime.sendMessage({
-            action: 'translate',
-            tabId: tab.id,
-        }, (response) => {
-            console.log('Translation initiated:', response);
-            
-            if (chrome.runtime.lastError || !response || response.error) {
-                console.error('Translation failed to start:', chrome.runtime.lastError || response.error);
-                resetTranslationUI(false);
-                addLoadingState(translateBtn, false);
-                return;
-            }
+        let timeoutId;
 
+        try {
+            const callTranslate = await sendRuntimeMessage({ action: 'translate', tabId: tab.id });
+
+            if (!callTranslate || callTranslate.error) {
+                throw new Error(callTranslate?.error || "Unknown error");
+            }
+            
             // Only add loading state if translation truly starts
             addLoadingState(translateBtn, true);
             isTranslating = true;
@@ -427,15 +447,20 @@ translateBtn.addEventListener('click', async () => {
             translateBtn.textContent = "Translating...";
 
             // Fallback timeout
-            setTimeout(() => {
+            timeoutId = setTimeout(() => {
                 if (isTranslating) {
                     resetTranslationUI(false);
                     addLoadingState(translateBtn, false);
                     console.log('Translation reset by timeout fallback');
                 }
             }, 45000);
-        });
-
+        } catch (error) {
+            if (timeoutId) clearTimeout(timeoutId);
+            console.error('Translation failed to start:', error);
+            resetTranslationUI(false);
+            addLoadingState(translateBtn, false);
+            return;
+        }
     } catch (error) {
         console.error('Error:', error);
         alert('Please refresh the page and try again.');
@@ -445,7 +470,7 @@ translateBtn.addEventListener('click', async () => {
 });
 
 // Saves the api key when saveAPI button is clicked
-saveAPIBtn.addEventListener('click', () => {
+saveAPIBtn.addEventListener('click', async () => {
     const apiKey = document.getElementById('inputAPI').value.trim();
     // Validate API key
     if (!apiKey) {
@@ -457,16 +482,18 @@ saveAPIBtn.addEventListener('click', () => {
         alert('Invalid API key format. Use alphanumeric characters, underscores, or hyphens.');
         return;
     }
-    chrome.runtime.sendMessage({
-        action: 'saveAPIKey',
-        apiKey: apiKey
-    }, (response) => {
-        if (response && response.success) {
+
+    try {
+        const saveAPIKey = await sendRuntimeMessage({ action: 'saveAPIKey', apiKey: apiKey });
+
+        if (saveAPIKey && saveAPIKey?.success) {
             alert('API Key saved successfully.');
             document.getElementById('inputAPI').value = ''; // Clear input after saving
-        } else {
-            alert('Failed to save API key: ' + (response?.error || 'Unknown error'));
         }
-        console.log('API Key save response:', response);
-    });
+
+        console.log('API Key save response:', saveAPIKey);
+    } catch (error) {
+        alert(`Failed to save API key: `, + error.message)
+        console.error('Failed to save API key:', error);
+    }
 });
