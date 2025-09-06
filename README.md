@@ -13,6 +13,7 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 - **Quick, Easy And High Quality Translations** (Better than Google Translate)
 - **Live AI Translation** using Gemini (via Your API key)
 - **Preserves Structure And Formatting** (For most cases)
+- **Free To Use** due to only requiring the free tier
 
 ## Current Limitations:
 
@@ -60,7 +61,7 @@ Step By Step:
 ### 3. Start Translating  
 Go to any website → Open the extension → Click **Translate**
 
-![LingoSwap Popup](Images/READMEimages/popup2.PNG)
+![LingoSwap Popup](Assets/Images/READMEimages/popup2.PNG)
 
 ## Example Usage:
 
@@ -68,15 +69,15 @@ Website Used: https://www3.nhk.or.jp/news/
 
 **Untranslated:**
 
-![Untranslated Site](Images/READMEimages/NHK-Original.png)
+![Untranslated Site](Assets/Images/READMEimages/NHK-Original.png)
 
 **LingoSwap:**
 
-![LingoSwap Translation](Images/READMEimages/NHK-LingoSwap.png)
+![LingoSwap Translation](Assets/Images/READMEimages/NHK-LingoSwap.png)
 
 **Google Translate (For Comparison):**
 
-![Google Translate](Images/READMEimages/NHK-GoogleTranslate.png)
+![Google Translate](Assets/Images/READMEimages/NHK-GoogleTranslate.png)
 
 ## How it works:
 1. LingoSwap extracts visible text nodes from any webpage.

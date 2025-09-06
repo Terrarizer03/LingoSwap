@@ -6,10 +6,10 @@
     "action": {
         "default_popup": "Scripts/PopupUI/popup.html",
         "default_icon": {
-            "16": "Images/LSLogo(16x)(2).png",
-            "32": "Images/LSLogo(32x)(2).png",
-            "48": "Images/LSLogo(48x)(2).png",
-            "128": "Images/LSLogo(128x)(2).png"
+            "16": "Assets/Images/LSLogo(16x)(2).png",
+            "32": "Assets/Images/LSLogo(32x)(2).png",
+            "48": "Assets/Images/LSLogo(48x)(2).png",
+            "128": "Assets/Images/LSLogo(128x)(2).png"
         }
     },
     "content_scripts": [
