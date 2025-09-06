@@ -1,15 +1,23 @@
 {
     "name": "LingoSwap",
     "description": "An extension that translates websites using AI.",
-    "version": "0.5.8",
+    "version": "0.5.9",
     "manifest_version": 3,
+    "icons": {
+        "16": "Assets/Images/icon16.png",
+        "32": "Assets/Images/icon32.png",
+        "48": "Assets/Images/icon48.png",
+        "128": "Assets/Images/icon128.png",
+        "256": "Assets/Images/icon256.png"
+    },
     "action": {
         "default_popup": "Scripts/PopupUI/popup.html",
         "default_icon": {
-            "16": "Assets/Images/LSLogo(16x)(2).png",
-            "32": "Assets/Images/LSLogo(32x)(2).png",
-            "48": "Assets/Images/LSLogo(48x)(2).png",
-            "128": "Assets/Images/LSLogo(128x)(2).png"
+            "16": "Assets/Images/icon16.png",
+            "32": "Assets/Images/icon32.png",
+            "48": "Assets/Images/icon48.png",
+            "128": "Assets/Images/icon128.png",
+            "256": "Assets/Images/icon256.png"
         }
     },
     "content_scripts": [
