@@ -20,7 +20,6 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 - **Images** – If the text is in image form, the extension cannot read and translate the text.
 - **Translation Quality** – Due to current constraints, although better than normal translators, it is not at the limit of current AI Translations due to its dependency on Gemini's Free Tier.
 - **Non-Standard HTML Structures** – Some websites use unconventional HTML structures which may cause extraction or translation issues, resulting in missing or full cancellation of translation.
-- **Large-Scale Websites** – The higher the text count (~500 to ~1000 text elements), the higher the possibility of error, which can result in a translation cancel.
 - **AI Related Issues** – The AI itself could return unexpected outputs causing errors in translation.
 
 ## Planned Updates & Future Improvements:
