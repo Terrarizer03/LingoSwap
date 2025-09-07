@@ -1,5 +1,11 @@
 // THIS CODE IS ACTUALLY BULLSHIT I UNDERSTAND LIKE 2% OF IT FUCK
 
+/* 
+*
+*   To anyone viewing this code... I'm sorry.
+*
+*/
+
 // Store abort controllers for each tab
 let tabAbortControllers = {};
 
@@ -95,7 +101,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     // Listen for text to translate from content script
-    if (message.action === 'getTextToTranslate') {
+    if (message.action === 'getTextToTranslate') { // This entire flow is bullshit, fuck you past me.
         const textArray = message.textArray;
         const tabId = sender.tab.id;
 

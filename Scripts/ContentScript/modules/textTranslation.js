@@ -10,6 +10,7 @@
 
 /* =====================>>> MAIN ENTRY POINT <<<===================== */
 
+import { sendRuntimeMessage } from '../../PopupUI/modules/messaging.js';
 import {  getFilteredTextElements,  replaceWithTranslation,  createTextStorage, restoreTexts } from './domUtils.js';
 import { getSiteLanguage } from './languageDetection.js';
 
@@ -52,19 +53,19 @@ async function testTranslation() {
         textStorage = createTextStorage(elements);
 
         // Send text to background script for translation
-        chrome.runtime.sendMessage({
-            action: 'getTextToTranslate',
-            textArray: texts
-        }, (response) => {
-            if (response && response.success) {
+        try {
+            const getTextToTranslate = await sendRuntimeMessage({ action: 'getTextToTranslate', textArray: texts });
+            if (getTextToTranslate && getTextToTranslate.success) {
                 console.log('Text elements sent for translation:', texts.length);
             } else {
                 // Reset state on failure
                 isTranslated = false;
                 isTranslating = false;
                 textStorage = null;
-            }
-        });
+            };
+        } catch (error) {
+            console.error('Failed to get text: ', error);
+        }
 
     } catch (error) {
         console.error('Translation failed:', error.message);
@@ -184,7 +185,7 @@ async function handleDominantLanguage(message, sendResponse) {
     return true;
 }
 
-function handleDOMupdates(message, sendResponse) {
+async function handleDOMupdates(message, sendResponse) {
     console.log('Received translated text from background');
     const translatedText = message.translatedText;
     textLength = message.textLength;

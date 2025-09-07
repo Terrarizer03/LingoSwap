@@ -1,3 +1,5 @@
+/* =====================>>> MODULE FOR POPUP.JS <<<===================== */
+
 export async function loadStoredSettings() {
     return new Promise((resolve) => {
         chrome.storage.local.get(["darkMode", "targetLang"], (result) => {

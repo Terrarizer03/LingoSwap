@@ -1,4 +1,17 @@
 (() => {
+  // Scripts/PopupUI/modules/messaging.js
+  function sendRuntimeMessage(message) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
   // Scripts/ContentScript/utils/domUtils.js
   function getFilteredTextElements(root) {
     const elements = [];
@@ -261,18 +274,19 @@
       }
       console.log(`Processing ${texts.length} texts for translation...`);
       textStorage = createTextStorage(elements);
-      chrome.runtime.sendMessage({
-        action: "getTextToTranslate",
-        textArray: texts
-      }, (response) => {
-        if (response && response.success) {
+      try {
+        const getTextToTranslate = await sendRuntimeMessage({ action: "getTextToTranslate", textArray: texts });
+        if (getTextToTranslate && getTextToTranslate.success) {
           console.log("Text elements sent for translation:", texts.length);
         } else {
           isTranslated = false;
           isTranslating = false;
           textStorage = null;
         }
-      });
+        ;
+      } catch (error) {
+        console.error("Failed to get text: ", error);
+      }
     } catch (error) {
       console.error("Translation failed:", error.message);
       if (textStorage) {
@@ -323,7 +337,7 @@
         sendResponse({ injected: true });
         return true;
       case "dominantLanguage":
-        return handleDominantLanguage(sendResponse);
+        return handleDominantLanguage(message, sendResponse);
       case "translate":
         return handleTranslation(message, sendResponse);
       case "translatingOrNot":
@@ -357,7 +371,7 @@
     }
     return true;
   }
-  async function handleDominantLanguage(sendResponse) {
+  async function handleDominantLanguage(message, sendResponse) {
     try {
       const result = await getSiteLanguage(document.body);
       sendResponse({

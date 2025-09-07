@@ -1,3 +1,5 @@
+/* =====================>>> MODULE FOR POPUP.JS <<<===================== */
+
 const languageCodeMap = {
     'en': 'English',
     'zh': 'Chinese',

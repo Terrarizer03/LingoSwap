@@ -1,3 +1,5 @@
+/* =====================>>> MODULE FOR POPUP.JS <<<===================== */
+
 export function initializeUI() {
     // Cache DOM elements that are used frequently
     const elements = {

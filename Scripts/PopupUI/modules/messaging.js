@@ -1,3 +1,5 @@
+/* =====================>>> MODULE FOR POPUP.JS <<<===================== */
+
 export function sendContentMessage(activeTabId, message) {
     return new Promise((resolve, reject) => { 
         chrome.tabs.sendMessage(activeTabId, message, (response) => {

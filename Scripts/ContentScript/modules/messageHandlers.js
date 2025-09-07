@@ -1,6 +1,8 @@
 // Currently an unused module as it's making issues, will integrate once I figure it out. 
 // For now though, I'm too lazy... :P
 
+/* =====================>>> MODULE FOR TEXTTRANSLATION.JS <<<===================== */
+
 export async function handleTranslation(message, sendResponse) {
     activeTabId = message.tabId;
     console.log('Received request to get text nodes');

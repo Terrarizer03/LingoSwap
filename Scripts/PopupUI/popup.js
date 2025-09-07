@@ -1,4 +1,5 @@
-// popup.js - Main entry point
+/* =====================>>> MAIN ENTRY POINT <<<===================== */
+
 import { initializeUI, updateButtonState, resetTranslationUI, addLoadingState, addShakeAnimation } from './modules/ui.js';
 import { sendContentMessage } from './modules/messaging.js';
 import { hideMatchingLanguageOption } from './modules/languageUtils.js';

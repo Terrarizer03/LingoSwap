@@ -1,3 +1,5 @@
+/* =====================>>> MODULE FOR POPUP.JS <<<===================== */
+
 import { sendContentMessage, sendRuntimeMessage } from './messaging.js';
 import { addLoadingState, addShakeAnimation, resetTranslationUI } from './ui.js';
 import { saveTargetLanguage } from './storage.js';
