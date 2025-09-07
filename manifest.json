@@ -22,7 +22,7 @@
     },
     "content_scripts": [
         {
-            "js": ["Scripts/ContentScript/textTranslation.js"],
+            "js": ["Scripts/ContentScript/DOMextraction.js"],
             "matches": ["<all_urls>"]
         }
     ],
@@ -36,6 +36,7 @@
     ],
     "host_permissions": ["https://generativelanguage.googleapis.com/*"],
     "background": {
-        "service_worker": "Scripts/Background/apiCalls.js"
+        "service_worker": "Scripts/Background/apiCalls.js",
+        "type": "module"
     }
 }
