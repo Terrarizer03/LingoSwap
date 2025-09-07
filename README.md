@@ -1,7 +1,7 @@
 # LingoSwap (Chrome Extension)
 
 <div style="text-align: center;">
-  <img src="Assets/Images/READMEimages/LingoSwapBanner.png" alt="LingoSwapBanner" width="600"/>
+  <img src="Assets/Images/READMEimages/LingoSwapBanner.png" alt="LingoSwapBanner" width="850"/>
 </div>
 
 An AI-based Chrome Extension that **translates full websites** using Google’s Gemini LLM — while preserving **tone**, **structure**, and **context** far better than traditional machine translators. Created for novel readers, journalists, student researchers, and practically anyone in need of better and more accurate translation quality on websites.
