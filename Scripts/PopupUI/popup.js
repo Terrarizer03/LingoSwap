@@ -65,7 +65,9 @@ async function waitForContentScript() {
 async function initializePageState() {
     try {
         // Get translation state
+        console.log('Getting translation state...');
         const translationState = await sendContentMessage(activeTabId, { action: 'getTranslationState' });
+        console.log('Translation state received:', translationState);
         if (translationState) {
             updateButtonState(translationState.isTranslated, translationState.translationState);
             translatedTextFinished = translationState.textLength;
@@ -73,13 +75,17 @@ async function initializePageState() {
         }
         
         // Get language detection
+        console.log('Getting language detection...');
         const languageResponse = await sendContentMessage(activeTabId, { action: 'dominantLanguage' });
+        console.log('Language response received:', languageResponse);
         if (languageResponse?.language) {
             hideMatchingLanguageOption(languageResponse.language);
         }
         
         // Check if currently translating
+        console.log('Checking translation status...');
         const translatingResponse = await sendContentMessage(activeTabId, { action: 'translatingOrNot' });
+        console.log('Translation status received:', translatingResponse);
         const translateBtn = document.getElementById('translate-btn');
         if (translatingResponse?.translationStatus) {
             translateBtn.textContent = "Translating...";

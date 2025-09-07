@@ -129,7 +129,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ injected: true });
             return true;
         case "dominantLanguage":
-            return handleDominantLanguage(message, sendResponse);
+            return handleDominantLanguage(sendResponse);
         case "translate":
             return handleTranslation(message, sendResponse);
         case "translatingOrNot":
@@ -167,7 +167,7 @@ async function handleTranslation(message, sendResponse) {
     return true;
 }
 
-async function handleDominantLanguage(message, sendResponse) {
+async function handleDominantLanguage(sendResponse) {
     try {
         const result = await getSiteLanguage(document.body);
         sendResponse({ 

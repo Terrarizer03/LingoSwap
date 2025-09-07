@@ -20,7 +20,8 @@
 * 🔴 **Popup Text Translation** – A small section in the popup that has a translation box where you can input your copied text and returns the output in the box beside/below.
 * 🔴 **Storage Security** – Storing user-provided API keys more securely.
 * 🔴 **Cross Browser Compatibility** – Make sure it can run on all web browsers that support extensions (Chromium-based browsers, Firefox, Microsoft Edge, Brave, Samsung Internet, Lemur Browser, and more…).
-* 🔴 **Offline Translations** – Make it possible for users to translate websites offline with no internet or API key by using a fallback AI. If all else fails, be able to do translations with dictionary-based translations. Google Translate (or similar) Integration – Make small chunks (those with less than 100 characters and 10 text elements) be translated by basic translation tools instead of using Gemini.
+* 🔴 **Offline Translations** – Make it possible for users to translate websites offline with no internet or API key by using a fallback AI. If all else fails, be able to do translations with dictionary-based translations. 
+* 🔴 **Google Translate (or similar) Integration** – Make small chunks (those with less than 100 characters and 10 text elements) be translated by basic translation tools instead of using Gemini.
 * 🔴 **Different “Experts”** – Add an option to toggle between different prompts for the AI.
 * 🔴 **OCR Translations** – Image translation becomes possible.
 * 🔴 **PDF Translations** – Translating PDF and other files.

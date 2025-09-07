@@ -1,10 +1,10 @@
-// THIS CODE IS ACTUALLY BULLSHIT I UNDERSTAND LIKE 2% OF IT FUCK
-
 /* 
 *
 *   To anyone viewing this code... I'm sorry.
 *
 */
+
+/* =====================>>> MAIN ENTRY POINT <<<===================== */
 
 // Store abort controllers for each tab
 let tabAbortControllers = {};
@@ -286,7 +286,7 @@ async function performTranslation(textArray, targetLang, apiKey, tabId, abortCon
     }
     
     // Split into chunks
-    const chunks = chunkArray(textArray, CHUNK_SIZE, CHAR_COUNT);
+    const chunks = await chunkArray(textArray, CHUNK_SIZE, CHAR_COUNT);
     console.log(`Split into ${chunks.length} chunks`);
 
     // Calculate chunk lengths for proper indexing
@@ -461,7 +461,7 @@ function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextAr
 }
 
 // Utility functions
-function chunkArray(array, chunkSize, charCount) {
+async function chunkArray(array, chunkSize, charCount) {
     const chunks = [];
     let currentChunk = [];
     let currentCharCount = 0;

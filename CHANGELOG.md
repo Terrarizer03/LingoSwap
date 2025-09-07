@@ -1,8 +1,12 @@
 # LingoSwap Changelog
 
-Date Format - (Year/Month/Day)
+Date Format: (Year-Month-Day)
 
-## [v0.5.9] - 2025-08-22 to ???
+## ![v0.6.0](https://img.shields.io/badge/Version-v0.6.0-green) - `2025-09-07 to ???`
+### Added Features:
+- **Cleaned Up Code** - Code is more modularized and better structured. This should help with updates and scaling in the future.
+
+## ![v0.5.9](https://img.shields.io/badge/Version-v0.5.9-blue) - `2025-08-22 to 2025-09-06`
 ### Added Features:
 - **Added Content Script Injection Fail Fallback** - If the user opens the popup before content script is injected, it'll display a loading screen until a message is received.
 - **Added Language Detection** - Reliably detects the site language and deletes the option in the target language dropdown.
@@ -11,9 +15,7 @@ Date Format - (Year/Month/Day)
 ### Bug Fixes:
 - **Broken Formatting** - Had a bug where formatting was broken when translating due to chunks getting returned in the wrong order, was fixed in the recent commits.
 
-##
-
-## [v0.0.0 - v0.5.8] - 2025-06-15 to 2025-08-21
+## ![v0.0.0 - v0.5.8](https://img.shields.io/badge/Version-v0.0.0_to_v0.5.8-blue) - `2025-06-15 to 2025-08-21`
 ### Added Features:
 - **Initial AI Translator Integration** - Tested Groq, Gemini, and DeepSeek; inevitably chose to integrate Gemini due to a more reliable Free Tier.
 - **DOM Manipulation & Translation Logic** - Extracts text from websites and performs placeholder translations; later replaced with real AI translation.
