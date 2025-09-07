@@ -1,12 +1,16 @@
+/* 
+
+    To any collaborator, please do "npm install -g esbuild" and switch out 
+    the DOMextraction.js everytime you do a change in the content script's
+    modules. Also remember that textTranslation.js is the entry point for
+    the entire content script. So if you're bundling, bundle this file.
+    Thank you.
+
+*/
+
 /* =====================>>> MAIN ENTRY POINT <<<===================== */
 
-import { 
-    getFilteredTextElements, 
-    replaceWithTranslation, 
-    createTextStorage,
-    restoreTexts
-} from './domUtils.js';
-
+import {  getFilteredTextElements,  replaceWithTranslation,  createTextStorage, restoreTexts } from './domUtils.js';
 import { getSiteLanguage } from './languageDetection.js';
 
 // Debug: Log when content script loads
@@ -119,117 +123,123 @@ function restoreOriginalText() {
 
 //Listen for messages from popup via background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "isInjected") {
-        sendResponse({ injected: true });
-        return true;
+    switch (message.action) {
+        case "isInjected":
+            sendResponse({ injected: true });
+            return true;
+        case "dominantLanguage":
+            return handleDominantLanguage(message, sendResponse);
+        case "translate":
+            return handleTranslation(message, sendResponse);
+        case "translatingOrNot":
+            sendResponse({
+                success: true,
+                translationStatus: isTranslating
+            });
+            return true;
+        case "updateDOM":
+            return handleDOMupdates(message, sendResponse);
+        case "showOriginal":
+            return handleShowOriginal(message, sendResponse);
+        case "getTranslationState":
+            sendResponse({ 
+                isTranslated, 
+                translationState, 
+                textLength 
+            });
+            return true;
+    }   
+});
+
+async function handleTranslation(message, sendResponse) {
+    activeTabId = message.tabId;
+    console.log('Received request to get text nodes');
+
+    try {
+        isTranslating = true;
+        await testTranslation(); // Wait for the full translation process
+        sendResponse({ success: true, message: 'Translation complete' });
+    } catch (err) {
+        sendResponse({ success: false, message: 'Translation failed', error: err.message });
     }
 
-    if (message.action === "dominantLanguage") {
-        (async () => {
-            try {
-                const result = await getSiteLanguage(document.body);
-                sendResponse({ 
-                    language: result.language,
-                    confidence: result.confidence,
-                    isReliable: result.isReliable
-                });
-            } catch (error) {
-                sendResponse({ 
-                    language: null, 
-                    error: error.message 
-                });
-            }
-        })();
-        
-        return true;
-    }
+    return true;
+}
 
-    if (message.action === 'translate') {
-        activeTabId = message.tabId;
-        console.log('Received request to get text nodes');
-
-        (async () => {
-            try {
-                isTranslating = true;
-                await testTranslation(); // Wait for the full translation process
-                sendResponse({ success: true, message: 'Translation complete' });
-            } catch (err) {
-                sendResponse({ success: false, message: 'Translation failed', error: err.message });
-            }
-        })();
-
-        return true; // Tell Chrome this response is async
-    }
-
-    if (message.action === 'translatingOrNot') {
-        sendResponse({
-            success: true,
-            translationStatus: isTranslating
+async function handleDominantLanguage(message, sendResponse) {
+    try {
+        const result = await getSiteLanguage(document.body);
+        sendResponse({ 
+            language: result.language,
+            confidence: result.confidence,
+            isReliable: result.isReliable
+        });
+    } catch (error) {
+        sendResponse({ 
+            language: null, 
+            error: error.message 
         });
     }
-    
-    // Listen for translated text from background script
-    if (message.action === 'updateDOM') {
-        console.log('Received translated text from background');
-        const translatedText = message.translatedText;
-        textLength = message.textLength;
-        
-        try {
-            // Get the current elements (should match the ones we sent for translation)
-            const elements = getFilteredTextElements(document.body);
-            translatedTexts = translatedText;
-            replaceWithTranslation(elements, translatedText);
-            isTranslating = false;
-            isTranslated = true;
-            translationState = 'TranslatedText';
-            chrome.runtime.sendMessage({
-                action: 'translationComplete',
-                tabId: activeTabId,
-                translationState: isTranslated,
-                textLength: textLength
-            }); // Notify popup that translation is complete
-            console.log('DOM updated with translations');
-            sendResponse({ success: true });
-        } catch (error) {
-            console.error('Error updating DOM:', error);
-            sendResponse({ success: false, error: error.message });
-        }
-        
-        return true; // For async response
+
+    return true;
+}
+
+function handleDOMupdates(message, sendResponse) {
+    console.log('Received translated text from background');
+    const translatedText = message.translatedText;
+    textLength = message.textLength;
+
+    try {
+        // Get the current elements (should match the ones we sent for translation)
+        const elements = getFilteredTextElements(document.body);
+        translatedTexts = translatedText;
+        replaceWithTranslation(elements, translatedText);
+        isTranslating = false;
+        isTranslated = true;
+        translationState = 'TranslatedText';
+        chrome.runtime.sendMessage({
+            action: 'translationComplete',
+            tabId: activeTabId,
+            translationState: isTranslated,
+            textLength: textLength
+        }); // Notify popup that translation is complete
+        console.log('DOM updated with translations');
+        sendResponse({ success: true });
+    } catch (error) {
+        console.error('Error updating DOM:', error);
+        sendResponse({ success: false, error: error.message });
     }
 
-    if (message.action === 'showOriginal') {
-        console.log('Received toggle request for original/translated text.');
-        const tabId = message.tabId;
+    return true;
+}
 
-        try {
-            if (isTranslated) {
-                if (translationState === 'TranslatedText') {
-                    restoreOriginalText();
-                    translationState = 'RawText';
-                    console.log('Restored original text.');
-                } else {
-                    restoreTranslatedText();
-                    translationState = 'TranslatedText';
-                    console.log('Restored translated text.');
-                }
+function handleShowOriginal(message, sendResponse) {
+    console.log('Received toggle request for original/translated text.');
+    const tabId = message.tabId;
 
-                chrome.runtime.sendMessage({ 
-                    action: 'toggleComplete',
-                    state: translationState,
-                    tabId: tabId 
-                });
+    try {
+        if (isTranslated) {
+            if (translationState === 'TranslatedText') {
+                restoreOriginalText();
+                translationState = 'RawText';
+                console.log('Restored original text.');
+            } else {
+                restoreTranslatedText();
+                translationState = 'TranslatedText';
+                console.log('Restored translated text.');
             }
-            sendResponse({ success: true });
-        } catch (error) {
-            console.error('Toggle failed:', error.message);
-            sendResponse({ success: false, error: error.message });
-        }
 
-        return true;
+            chrome.runtime.sendMessage({ 
+                action: 'toggleComplete',
+                state: translationState,
+                tabId: tabId 
+            });
+        }
+        sendResponse({ success: true });
+    } catch (error) {
+        console.error('Toggle failed:', error.message);
+        sendResponse({ success: false, error: error.message });
     }
-    
-    if (message.action === 'getTranslationState') {
-        sendResponse({ isTranslated, translationState, textLength });
-    }
-});
+
+    return true;
+}
