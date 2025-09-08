@@ -11,7 +11,7 @@
 /* =====================>>> MAIN ENTRY POINT <<<===================== */
 
 import { sendRuntimeMessage } from '../../PopupUI/modules/messaging.js';
-import {  getFilteredTextElements,  replaceWithTranslation,  createTextStorage, restoreTexts } from './domUtils.js';
+import { getFilteredTextElements,  replaceWithTranslation,  createTextStorage, restoreTexts } from './domUtils.js';
 import { getSiteLanguage } from './languageDetection.js';
 
 // Debug: Log when content script loads
@@ -129,7 +129,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ injected: true });
             return true;
         case "dominantLanguage":
-            return handleDominantLanguage(sendResponse);
+            handleDominantLanguage(message, sendResponse);
+            return true;
         case "translate":
             return handleTranslation(message, sendResponse);
         case "translatingOrNot":
@@ -167,7 +168,7 @@ async function handleTranslation(message, sendResponse) {
     return true;
 }
 
-async function handleDominantLanguage(sendResponse) {
+async function handleDominantLanguage(message, sendResponse) {
     try {
         const result = await getSiteLanguage(document.body);
         sendResponse({ 
@@ -181,8 +182,6 @@ async function handleDominantLanguage(sendResponse) {
             error: error.message 
         });
     }
-
-    return true;
 }
 
 async function handleDOMupdates(message, sendResponse) {

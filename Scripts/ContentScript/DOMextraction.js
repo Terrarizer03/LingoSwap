@@ -12,7 +12,7 @@
     });
   }
 
-  // Scripts/ContentScript/utils/domUtils.js
+  // Scripts/ContentScript/modules/domUtils.js
   function getFilteredTextElements(root) {
     const elements = [];
     if (root === document.body) {
@@ -207,7 +207,7 @@
     }
   }
 
-  // Scripts/ContentScript/utils/languageDetection.js
+  // Scripts/ContentScript/modules/languageDetection.js
   async function getSiteLanguage(root) {
     const textElements = getFilteredTextElements(root);
     const textArray = textElements.map((element) => element.trimmedText || element.originalText || "");
@@ -249,7 +249,7 @@
     }
   }
 
-  // Scripts/ContentScript/utils/textTranslation.js
+  // Scripts/ContentScript/modules/textTranslation.js
   console.log("Translation content script loaded");
   console.log(`Found ${getFilteredTextElements(document.body).length} text elements on page load`);
   var textLength = null;
@@ -337,7 +337,8 @@
         sendResponse({ injected: true });
         return true;
       case "dominantLanguage":
-        return handleDominantLanguage(sendResponse);
+        handleDominantLanguage(message, sendResponse);
+        return true;
       case "translate":
         return handleTranslation(message, sendResponse);
       case "translatingOrNot":
@@ -371,7 +372,7 @@
     }
     return true;
   }
-  async function handleDominantLanguage(sendResponse) {
+  async function handleDominantLanguage(message, sendResponse) {
     try {
       const result = await getSiteLanguage(document.body);
       sendResponse({
@@ -385,9 +386,8 @@
         error: error.message
       });
     }
-    return true;
   }
-  function handleDOMupdates(message, sendResponse) {
+  async function handleDOMupdates(message, sendResponse) {
     console.log("Received translated text from background");
     const translatedText = message.translatedText;
     textLength = message.textLength;

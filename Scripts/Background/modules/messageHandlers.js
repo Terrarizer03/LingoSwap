@@ -1,9 +1,8 @@
 /* =====================>>> MODULE FOR APICALLS.JS <<<===================== */
 
-import { sendContentMessage } from '../../PopupUI/modules/messaging.js';
 import { performTranslation } from './textOutput.js'
 import { currentTranslationState, tabTranslationStates, tabAbortControllers } from './state.js'
-import { resetGlobalTranslationState, getStorageData, setStorageData, getCurrentTab, validateApiKey, sendProgressUpdate } from './backgroundUtils.js';
+import { resetGlobalTranslationState, getStorageData, setStorageData, getCurrentTab, validateApiKey, sendProgressUpdate, sendContentMessage } from './backgroundUtils.js';
 
 export async function handleTranslateRequest(message, sendResponse) {
     try {
@@ -33,8 +32,6 @@ export async function handleTranslateRequest(message, sendResponse) {
             message: 'Error communicating with content script: ' + error.message 
         });
     }
-
-    return true;
 }
 
 export async function handleSaveAPIKey(message, sendResponse) {
@@ -157,8 +154,6 @@ export async function handleGetTextToTranslate(message, sender, sendResponse) {
             });
         }
     }
-    
-    return true;
 }
 
 export async function handleGetTranslationProgress(message, sendResponse) {
@@ -186,6 +181,4 @@ export async function handleGetTranslationProgress(message, sendResponse) {
             error: error.message
         });
     }
-
-    return true;
 }

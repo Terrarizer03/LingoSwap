@@ -1,7 +1,7 @@
 /* =====================>>> MAIN ENTRY POINT <<<===================== */
 
-import { initializeUI, updateButtonState, resetTranslationUI, addLoadingState, addShakeAnimation } from './modules/ui.js';
-import { sendContentMessage } from './modules/messaging.js';
+import { initializeUI, updateButtonState, resetTranslationUI, addLoadingState, addShakeAnimation, updateTranslationReport } from './modules/ui.js';
+import { sendContentMessage, sendRuntimeMessage } from './modules/messaging.js';
 import { hideMatchingLanguageOption } from './modules/languageUtils.js';
 import { loadStoredSettings } from './modules/storage.js';
 import { setupEventListeners } from './modules/eventHandlers.js';
@@ -14,31 +14,37 @@ let activeTabId = null;
 
 // Initialize popup when DOM loads
 document.addEventListener("DOMContentLoaded", async () => {
-    // Initialize UI elements
-    initializeUI();
-    
-    // Load stored settings (dark mode, target language)
-    await loadStoredSettings();
-    
-    // Get current tab and set up main functionality
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    activeTabId = tabs[0].id;
-    
-    // Wait for content script injection
-    await waitForContentScript();
-    
-    // Setup all event listeners
-    setupEventListeners({
-        siteTranslated,
-        isTranslating,
-        activeTabId,
-        // Pass update functions
-        setSiteTranslated: (value) => siteTranslated = value,
-        setIsTranslating: (value) => isTranslating = value
-    });
-    
-    // Initialize page state
-    await initializePageState();
+    try {
+        // Initialize UI elements
+        initializeUI();
+        
+        // Load stored settings (dark mode, target language)
+        await loadStoredSettings();
+        
+        // Get current tab and set up main functionality
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        activeTabId = tabs[0].id;
+
+        // Wait for content script injection (fixed version)
+        await waitForContentScript();
+        
+        // Setup event listeners FIRST (like your working version)
+        setupEventListeners({
+            siteTranslated,
+            isTranslating,
+            activeTabId,
+            setSiteTranslated: (value) => siteTranslated = value,
+            setIsTranslating: (value) => isTranslating = value
+        });
+
+        // THEN initialize page state
+        await initializePageState();
+
+        console.log('Popup initialization complete');
+        
+    } catch (error) {
+        console.error('Failed to initialize popup:', error);
+    }
 });
 
 async function waitForContentScript() {
@@ -50,6 +56,7 @@ async function waitForContentScript() {
             try {
                 const response = await sendContentMessage(activeTabId, { action: 'isInjected' });
                 if (response?.injected) {
+                    console.log("Content script ready!");
                     loadingContainer.classList.add('hidden');
                     mainContainer.classList.remove('hidden');
                     clearInterval(timer);
@@ -68,28 +75,38 @@ async function initializePageState() {
         console.log('Getting translation state...');
         const translationState = await sendContentMessage(activeTabId, { action: 'getTranslationState' });
         console.log('Translation state received:', translationState);
+
         if (translationState) {
             updateButtonState(translationState.isTranslated, translationState.translationState);
             translatedTextFinished = translationState.textLength;
             siteTranslated = translationState.isTranslated;
+        }
+
+        // Get translation progress
+        await updateTranslationProgress();
+        
+        // Check if currently translating
+        console.log('Checking translation status...');
+        const translatingResponse = await sendContentMessage(activeTabId, { action: 'translatingOrNot' });
+        console.log('Translation status received:', translatingResponse);
+
+        const translateBtn = document.getElementById('translate-btn');
+        if (translatingResponse?.translationStatus) {
+            translateBtn.textContent = "Translating...";
+            addLoadingState(translateBtn, true);
+        } else {
+            translateBtn.textContent = "Translate";
+            addLoadingState(translateBtn, false);
         }
         
         // Get language detection
         console.log('Getting language detection...');
         const languageResponse = await sendContentMessage(activeTabId, { action: 'dominantLanguage' });
         console.log('Language response received:', languageResponse);
+
         if (languageResponse?.language) {
+            console.log(`Detected: ${languageResponse.language} (${languageResponse.confidence}% confidence)`);
             hideMatchingLanguageOption(languageResponse.language);
-        }
-        
-        // Check if currently translating
-        console.log('Checking translation status...');
-        const translatingResponse = await sendContentMessage(activeTabId, { action: 'translatingOrNot' });
-        console.log('Translation status received:', translatingResponse);
-        const translateBtn = document.getElementById('translate-btn');
-        if (translatingResponse?.translationStatus) {
-            translateBtn.textContent = "Translating...";
-            addLoadingState(translateBtn, true);
         }
         
     } catch (error) {
@@ -178,4 +195,35 @@ function handleTranslationProgress(message) {
         if (translatedDisplay) translatedDisplay.textContent = message.translated || 0;
         if (translatingDisplay) translatingDisplay.textContent = message.remaining || 0;
     });
+}
+
+async function updateTranslationProgress() {
+    if (siteTranslated) {
+        // Site is already translated, show completed state
+        console.log('Site already translated, showing completed state');
+        updateTranslationReport({
+            translated: translatedTextFinished,
+            remaining: 0
+        });
+        return;
+    }
+    
+    // Site not translated, get current progress
+    try {
+        console.log('Getting translation progress...');
+        const translationProgress = await sendRuntimeMessage({ 
+            action: 'getTranslationProgress', 
+            tabId: activeTabId 
+        });
+        
+        console.log('Translation progress recieved:', translationProgress);
+        if (translationProgress?.success && translationProgress.totalItems > 0) {
+            updateTranslationReport({
+                translated: translationProgress.translated,
+                remaining: translationProgress.remaining
+            });
+        }
+    } catch (error) {
+        console.error("Failed in getting translation progress", error);
+    }
 }

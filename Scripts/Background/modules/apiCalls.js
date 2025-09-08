@@ -1,3 +1,5 @@
+// WORKS NOW YIPPEE
+
 /* =====================>>> MAIN ENTRY POINT <<<===================== */
 
 // Import all the modular handlers
@@ -13,52 +15,71 @@ import { currentTranslationState, tabTranslationStates, tabAbortControllers } fr
 
 // Listen for tab updates (including reloads)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'loading' && tabTranslationStates[tabId]) {
-        console.log(`Tab ${tabId} is reloading, clearing translation state`);
+    try {
+        if (changeInfo.status === 'loading' && tabTranslationStates[tabId]) {
+            console.log(`Tab ${tabId} is reloading, clearing translation state`);
 
-        chrome.runtime.sendMessage({
-            action: 'reloading'
-        });
-        
-        // Abort ongoing translation for this tab
-        if (tabAbortControllers[tabId]) {
-            console.log(`Aborting translation for tab ${tabId}`);
-            tabAbortControllers[tabId].abort();
-            delete tabAbortControllers[tabId];
+            chrome.runtime.sendMessage({
+                action: 'reloading'
+            });
+            
+            // Abort ongoing translation for this tab
+            if (tabAbortControllers[tabId]) {
+                console.log(`Aborting translation for tab ${tabId}`);
+                tabAbortControllers[tabId].abort();
+                delete tabAbortControllers[tabId];
+            }
+            
+            // Clear translation state for this tab
+            delete tabTranslationStates[tabId];
+            
+            if (currentTranslationState.isTranslating && currentTranslationState.tabId === tabId) {
+                resetGlobalTranslationState();
+            }   
         }
-        
-        // Clear translation state for this tab
-        delete tabTranslationStates[tabId];
-        
-        if (currentTranslationState.isTranslating && currentTranslationState.tabId === tabId) {
-            resetGlobalTranslationState();
-        }   
+    } catch (error) {
+        console.error('Cannot listen to tab updates:', error)
     }
 });
 
-// Main message listener - clean and simple
+// Main message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    switch (message.action) {
-        case 'translate':
-            return handleTranslateRequest(message, sendResponse);
+    try {
+        switch (message.action) {
+            case 'translate':
+                handleTranslateRequest(message, sendResponse);
+                return true;
+                
+            case 'saveAPIKey':
+                return handleSaveAPIKey(message, sendResponse);
+                
+            case 'getTextToTranslate':
+                handleGetTextToTranslate(message, sender, sendResponse);
+                return true;
+                
+            case 'getTranslationProgress':
+                handleGetTranslationProgress(message, sendResponse);
+                return true;
             
-        case 'saveAPIKey':
-            return handleSaveAPIKey(message, sendResponse);
+            case 'toggleComplete':
+                sendResponse({ success: true });
+                return true;
             
-        case 'getTextToTranslate':
-            return handleGetTextToTranslate(message, sender, sendResponse);
-            
-        case 'getTranslationProgress':
-            return handleGetTranslationProgress(message, sendResponse);
-            
-        default:
-            // Handle unknown actions gracefully
-            console.warn(`Unknown action: ${message.action}`);
-            sendResponse({ 
-                success: false, 
-                error: `Unknown action: ${message.action}` 
-            });
-            return false;
+            case 'translationComplete':
+                sendResponse({success: true });
+                return true;
+
+            default:
+                // Handle unknown actions gracefully
+                console.warn(`Unknown action: ${message.action}`);
+                sendResponse({ 
+                    success: false, 
+                    error: `Unknown action: ${message.action}` 
+                });
+                return false;
+        }
+    } catch (error) {
+        console.error('Failed in returning message:', error)
     }
 });
 

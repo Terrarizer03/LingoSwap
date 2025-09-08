@@ -1,6 +1,6 @@
 /* =====================>>> MODULE FOR APICALLS.JS <<<===================== */
 
-import { currentTranslationState, tabTranslationStates } from "./state";
+import { currentTranslationState, tabTranslationStates } from "./state.js";
 
 // Helper function to reset global state
 export function resetGlobalTranslationState() {
@@ -59,13 +59,17 @@ export function sendProgressUpdate(translated, remaining, tabId) {
         tabTranslationStates[tabId].translatedItems = translated;
         tabTranslationStates[tabId].remainingItems = remaining;
     }
+    try {
+        chrome.runtime.sendMessage({
+            action: 'translationProgress',
+            translated,
+            remaining,
+            tabId
+        });
+    } catch (error) {
+        console.error(`Failed to send progress update for tab ${tabId}:`, error);
+    }  
     
-    chrome.runtime.sendMessage({
-        action: 'translationProgress',
-        translated,
-        remaining,
-        tabId
-    }).catch(error => console.error(`Failed to send progress update for tab ${tabId}:`, error));;
 };
 
 // Utility functions
@@ -136,4 +140,16 @@ export function parseNumberedResponse(response, expectedLength) {
     }
     
     return translatedArray;
+}
+
+export function sendContentMessage(activeTabId, message) {
+    return new Promise((resolve, reject) => { 
+        chrome.tabs.sendMessage(activeTabId, message, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(response);
+            }
+        });
+    });
 }

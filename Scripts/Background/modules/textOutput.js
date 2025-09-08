@@ -1,6 +1,6 @@
 /* =====================>>> MODULE FOR APICALLS.JS <<<===================== */
 
-import { parseNumberedResponse, sendProgressUpdate, chunkArray } from "./backgroundUtils";
+import { parseNumberedResponse, sendProgressUpdate, chunkArray, delay } from "./backgroundUtils.js";
 
 // Enhanced translation function with chunking support and abort controller
 export async function performTranslation(textArray, targetLang, apiKey, tabId, abortController) {
@@ -89,7 +89,7 @@ export async function performTranslation(textArray, targetLang, apiKey, tabId, a
 }
 
 // Merged Translate Text Function with abort controller
-export async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null, abortController, chunksLength = null) {
+async function translateTextChunk(textArray, targetLang, apiKey, chunkIndex = 0, totalChunks = 1, fullTextArray = null, abortController, chunksLength = null) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const textList = textArray.map((text, index) => `${index + 1}. ${text}`).join('\n');
     // Determines which prompt to use, single chunk prompt or multi chunk prompt
@@ -153,7 +153,7 @@ export async function translateTextChunk(textArray, targetLang, apiKey, chunkInd
 }
 
 // Build contextual prompt to help maintain coherence across chunks
-export function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang, chunkLengths) {
+function buildContextualPrompt(currentChunk, chunkIndex, totalChunks, fullTextArray, targetLang, chunkLengths) {
     let contextPrompt = `Translate the following text to ${targetLang}. `;
     
     if (totalChunks > 1) {
