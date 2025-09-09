@@ -1,10 +1,14 @@
 # LingoSwap Changelog
 
-Date Format: (Year-Month-Day)
+`Date Format: (Year-Month-Day)`
 
 ## ![v0.6.0](https://img.shields.io/badge/Version-v0.6.0-green) - `2025-09-07 to ???`
 ### Added Features:
 - **Cleaned Up Code** - Code is more modularized and better structured. This should help with updates and scaling in the future.
+- **Translation Flow** - Changed the translation flow and got rid of redundant message passing.
+
+### Bug Fixes:
+- **Broken Target Language** - Added tab-based target language to stop cross-tab bugs from occuring.
 
 ## ![v0.5.9](https://img.shields.io/badge/Version-v0.5.9-blue) - `2025-08-22 to 2025-09-06`
 ### Added Features:

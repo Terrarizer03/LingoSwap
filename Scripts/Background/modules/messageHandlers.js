@@ -1,38 +1,9 @@
 /* =====================>>> MODULE FOR APICALLS.JS <<<===================== */
 
+import { sendContentMessage } from '../../PopupUI/modules/messaging.js'
 import { performTranslation } from './textOutput.js'
 import { currentTranslationState, tabTranslationStates, tabAbortControllers } from './state.js'
-import { resetGlobalTranslationState, getStorageData, setStorageData, getCurrentTab, validateApiKey, sendProgressUpdate, sendContentMessage } from './backgroundUtils.js';
-
-export async function handleTranslateRequest(message, sendResponse) {
-    try {
-        currentTranslationState.isTranslating = true;
-        const { tabId } = message;
-        
-        const result = await getStorageData(['targetLang']);
-        const targetLang = result.targetLang || 'English';
-        
-        console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
-        
-        // Store the translation request details
-        await setStorageData({ 
-            currentTranslationRequest: { tabId, targetLang } 
-        });
-        
-        // Forward the translate message to content script
-        await sendContentMessage(tabId, {
-            action: 'translate',
-            tabId: tabId
-        });
-        
-        sendResponse({ success: true, message: 'Translation initiated' });
-    } catch (error) {
-        sendResponse({ 
-            success: false, 
-            message: 'Error communicating with content script: ' + error.message 
-        });
-    }
-}
+import { resetGlobalTranslationState, getStorageData, setStorageData, getCurrentTab, validateApiKey, sendProgressUpdate  } from './backgroundUtils.js';
 
 export async function handleSaveAPIKey(message, sendResponse) {
     try {
@@ -65,18 +36,22 @@ export async function handleSaveAPIKey(message, sendResponse) {
     return true;
 }
 
-export async function handleGetTextToTranslate(message, sender, sendResponse) {
+export async function handlePerformTranslation(message, sender, sendResponse) {
     try {
+        currentTranslationState.isTranslating = true;
+
         const textArray = message.textArray;
-        const tabId = sender.tab.id;
+        const tabId = message.tabId;
+        const tabLang = `targetLang_${tabId}`;
 
         // Get required data from storage
-        const result = await getStorageData(['apiKey', 'currentTranslationRequest', 'targetLang']);
+        const result = await getStorageData(['apiKey', tabLang]);
         const apiKey = result.apiKey || '';
-        const translationRequest = result.currentTranslationRequest;
-        const targetLang = result.targetLang || 'English';
+        const targetLang = result[tabLang];
         
-        if (!apiKey) {
+        console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
+
+        if (!apiKey || '') {
             chrome.runtime.sendMessage({
                 action: 'APIKeyError',
             });
@@ -84,14 +59,6 @@ export async function handleGetTextToTranslate(message, sender, sendResponse) {
             sendResponse({ 
                 success: false, 
                 message: 'API key not found. Please set your API key first.' 
-            });
-            return;
-        }
-
-        if (!translationRequest) {
-            sendResponse({ 
-                success: false, 
-                message: 'Translation request details not found.' 
             });
             return;
         }
@@ -132,6 +99,7 @@ export async function handleGetTextToTranslate(message, sender, sendResponse) {
         sendResponse({ success: true });
         
     } catch (error) {
+        currentTranslationState.isTranslating = false;
         console.error('Translation error:', error);
         
         // Clean up abort controller on error

@@ -4,14 +4,14 @@
 
 // Import all the modular handlers
 import { 
-    handleTranslateRequest, 
     handleSaveAPIKey, 
-    handleGetTextToTranslate,
+    handlePerformTranslation,
     handleGetTranslationProgress 
-} from './messageHandlers.js';
+} from './modules/messageHandlers.js';
 
-import { resetGlobalTranslationState } from './backgroundUtils.js';
-import { currentTranslationState, tabTranslationStates, tabAbortControllers } from './state.js';
+import { deleteTargetLanguage } from '../PopupUI/modules/storage.js';
+import { resetGlobalTranslationState } from './modules/backgroundUtils.js';
+import { currentTranslationState, tabTranslationStates, tabAbortControllers } from './modules/state.js';
 
 // Listen for tab updates (including reloads)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -38,7 +38,32 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             }   
         }
     } catch (error) {
-        console.error('Cannot listen to tab updates:', error)
+        console.error('Cannot listen to updated tab updates:', error)
+    }
+});
+
+// Listen for tab removal updates
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    try {
+        // Delete target language for specific tab.
+        deleteTargetLanguage(tabId)
+        console.log(`Deleted target language for closed tab ${tabId}`);
+        
+        // Abort ongoing translation for this tab
+        if (tabAbortControllers[tabId]) {
+            console.log(`Aborting translation for tab ${tabId}`);
+            tabAbortControllers[tabId].abort();
+            delete tabAbortControllers[tabId];
+        }
+
+        // Clear translation state for this tab
+        delete tabTranslationStates[tabId];
+        
+        if (currentTranslationState.isTranslating && currentTranslationState.tabId === tabId) {
+            resetGlobalTranslationState();
+        }   
+    } catch (error) {
+        console.error('Cannot listen to tab removal updates:', error)
     }
 });
 
@@ -46,15 +71,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
         switch (message.action) {
-            case 'translate':
-                handleTranslateRequest(message, sendResponse);
-                return true;
-                
             case 'saveAPIKey':
                 return handleSaveAPIKey(message, sendResponse);
                 
-            case 'getTextToTranslate':
-                handleGetTextToTranslate(message, sender, sendResponse);
+            case 'performTranslation':
+                handlePerformTranslation(message, sender, sendResponse);
                 return true;
                 
             case 'getTranslationProgress':

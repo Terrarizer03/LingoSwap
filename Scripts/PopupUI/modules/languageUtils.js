@@ -1,5 +1,7 @@
 /* =====================>>> MODULE FOR POPUP.JS <<<===================== */
 
+import { saveTargetLanguage } from "./storage.js";
+
 const languageCodeMap = {
     'en': 'English',
     'zh': 'Chinese',
@@ -11,7 +13,7 @@ const languageCodeMap = {
     'fil': 'Filipino'
 };
 
-export function hideMatchingLanguageOption(detectedLanguageCode) {
+export async function hideMatchingLanguageOption(detectedLanguageCode, tabId) {
     const targetDropdown = document.getElementById('target-lang');
     const languageName = languageCodeMap[detectedLanguageCode] || null;
     
@@ -29,9 +31,14 @@ export function hideMatchingLanguageOption(detectedLanguageCode) {
 
         if (foundMatch) {
             const firstVisible = options.find(opt => opt.style.display !== 'none');
-            if (firstVisible) {
+            const targetLang = await chrome.storage.local.get(`targetLang_${tabId}`);
+            const tabLang = targetLang[`targetLang_${tabId}`]
+
+            if (firstVisible && firstVisible.value !== tabLang) {
                 targetDropdown.value = firstVisible.value;
-                chrome.storage.local.set({ targetLang: targetDropdown.value });
+                saveTargetLanguage(firstVisible.value, tabId);
+            } else {
+                console.log('No matching language, all options are available.');
             }
         }
     } else {

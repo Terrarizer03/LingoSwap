@@ -66,17 +66,17 @@ async function handleTranslate(state) {
             return;
         }
 
-        const callTranslate = await sendRuntimeMessage({ action: 'translate', tabId: tab.id });
-        
-        if (!callTranslate || callTranslate.error) {
-            throw new Error(callTranslate?.error || "Unknown error");
-        }
-        
         addLoadingState(translateBtn, true);
         state.setIsTranslating(true);
         translateBtn.disabled = true;
         translateBtn.textContent = "Translating...";
 
+        const callTranslate = await sendContentMessage(tab.id, { action: 'startTranslation', tabId: tab.id });
+        
+        if (!callTranslate || callTranslate.error) {
+            throw new Error(callTranslate?.error || "Unknown error");
+        }
+        
         // Fallback timeout
         setTimeout(() => {
             if (state.isTranslating) {
@@ -94,8 +94,15 @@ async function handleTranslate(state) {
     }
 }
 
-function handleLanguageChange(event) {
-    saveTargetLanguage(event.target.value);
+async function handleLanguageChange(event) {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        saveTargetLanguage(event.target.value, tab.id);
+
+        console.log("Language Saved (Debug, in eventHandlers.js)");
+    } catch (error) {
+        console.error("Language couldn't be saved.", error);
+    }
 }
 
 async function handleSaveAPI() {

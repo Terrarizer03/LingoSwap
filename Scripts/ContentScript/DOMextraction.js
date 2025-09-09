@@ -259,7 +259,7 @@
   var translationState = "RawText";
   var textStorage = null;
   var translatedTexts = [];
-  async function testTranslation() {
+  async function testTranslation(tabId) {
     console.log("Starting translation test...");
     if (isTranslated) {
       console.log("Page is already translated. Skipping translation.");
@@ -275,15 +275,14 @@
       console.log(`Processing ${texts.length} texts for translation...`);
       textStorage = createTextStorage(elements);
       try {
-        const getTextToTranslate = await sendRuntimeMessage({ action: "getTextToTranslate", textArray: texts });
-        if (getTextToTranslate && getTextToTranslate.success) {
+        const performTranslation = await sendRuntimeMessage({ action: "performTranslation", textArray: texts, tabId });
+        if (performTranslation && performTranslation.success) {
           console.log("Text elements sent for translation:", texts.length);
         } else {
           isTranslated = false;
           isTranslating = false;
           textStorage = null;
         }
-        ;
       } catch (error) {
         console.error("Failed to get text: ", error);
       }
@@ -339,8 +338,9 @@
       case "dominantLanguage":
         handleDominantLanguage(message, sendResponse);
         return true;
-      case "translate":
-        return handleTranslation(message, sendResponse);
+      case "startTranslation":
+        handleTranslation(message, sendResponse);
+        return true;
       case "translatingOrNot":
         sendResponse({
           success: true,
@@ -348,9 +348,11 @@
         });
         return true;
       case "updateDOM":
-        return handleDOMupdates(message, sendResponse);
+        handleDOMupdates(message, sendResponse);
+        return true;
       case "showOriginal":
-        return handleShowOriginal(message, sendResponse);
+        handleShowOriginal(message, sendResponse);
+        return true;
       case "getTranslationState":
         sendResponse({
           isTranslated,
@@ -365,12 +367,11 @@
     console.log("Received request to get text nodes");
     try {
       isTranslating = true;
-      await testTranslation();
+      await testTranslation(activeTabId);
       sendResponse({ success: true, message: "Translation complete" });
     } catch (err) {
       sendResponse({ success: false, message: "Translation failed", error: err.message });
     }
-    return true;
   }
   async function handleDominantLanguage(message, sendResponse) {
     try {
@@ -410,7 +411,6 @@
       console.error("Error updating DOM:", error);
       sendResponse({ success: false, error: error.message });
     }
-    return true;
   }
   function handleShowOriginal(message, sendResponse) {
     console.log("Received toggle request for original/translated text.");
@@ -437,6 +437,5 @@
       console.error("Toggle failed:", error.message);
       sendResponse({ success: false, error: error.message });
     }
-    return true;
   }
 })();

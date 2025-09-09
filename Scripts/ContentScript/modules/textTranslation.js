@@ -28,7 +28,7 @@ let textStorage = null; // Will hold the storage object from domUtils
 let translatedTexts = [];
 
 // Enhanced translation function with error handling and state management (Entrance Point To Translation)
-async function testTranslation() {
+async function testTranslation(tabId) {
     console.log('Starting translation test...');
 
     // Check if already translated
@@ -54,15 +54,15 @@ async function testTranslation() {
 
         // Send text to background script for translation
         try {
-            const getTextToTranslate = await sendRuntimeMessage({ action: 'getTextToTranslate', textArray: texts });
-            if (getTextToTranslate && getTextToTranslate.success) {
+            const performTranslation = await sendRuntimeMessage({ action: 'performTranslation', textArray: texts, tabId: tabId });
+            if (performTranslation && performTranslation.success) {
                 console.log('Text elements sent for translation:', texts.length);
             } else {
                 // Reset state on failure
                 isTranslated = false;
                 isTranslating = false;
                 textStorage = null;
-            };
+            }
         } catch (error) {
             console.error('Failed to get text: ', error);
         }
@@ -128,21 +128,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "isInjected":
             sendResponse({ injected: true });
             return true;
+
         case "dominantLanguage":
             handleDominantLanguage(message, sendResponse);
             return true;
-        case "translate":
-            return handleTranslation(message, sendResponse);
+
+        case "startTranslation":
+            handleTranslation(message, sendResponse);
+            return true;
+
         case "translatingOrNot":
             sendResponse({
                 success: true,
                 translationStatus: isTranslating
             });
             return true;
+
         case "updateDOM":
-            return handleDOMupdates(message, sendResponse);
+            handleDOMupdates(message, sendResponse);
+            return true;
+
         case "showOriginal":
-            return handleShowOriginal(message, sendResponse);
+            handleShowOriginal(message, sendResponse);
+            return true;
+
         case "getTranslationState":
             sendResponse({ 
                 isTranslated, 
@@ -159,13 +168,11 @@ async function handleTranslation(message, sendResponse) {
 
     try {
         isTranslating = true;
-        await testTranslation(); // Wait for the full translation process
+        await testTranslation(activeTabId); // Wait for the full translation process
         sendResponse({ success: true, message: 'Translation complete' });
     } catch (err) {
         sendResponse({ success: false, message: 'Translation failed', error: err.message });
     }
-
-    return true;
 }
 
 async function handleDominantLanguage(message, sendResponse) {
@@ -209,8 +216,6 @@ async function handleDOMupdates(message, sendResponse) {
         console.error('Error updating DOM:', error);
         sendResponse({ success: false, error: error.message });
     }
-
-    return true;
 }
 
 function handleShowOriginal(message, sendResponse) {
@@ -240,6 +245,4 @@ function handleShowOriginal(message, sendResponse) {
         console.error('Toggle failed:', error.message);
         sendResponse({ success: false, error: error.message });
     }
-
-    return true;
 }

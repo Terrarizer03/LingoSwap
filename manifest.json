@@ -36,7 +36,7 @@
     ],
     "host_permissions": ["https://generativelanguage.googleapis.com/*"],
     "background": {
-        "service_worker": "Scripts/Background/modules/apiCalls.js",
+        "service_worker": "Scripts/Background/apiCalls.js",
         "type": "module"
     }
 }

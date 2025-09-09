@@ -18,17 +18,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Initialize UI elements
         initializeUI();
         
-        // Load stored settings (dark mode, target language)
-        await loadStoredSettings();
-        
         // Get current tab and set up main functionality
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         activeTabId = tabs[0].id;
 
-        // Wait for content script injection (fixed version)
+        // Load stored settings (dark mode, target language)
+        console.log(`tabId: ${activeTabId}`)
+        await loadStoredSettings(activeTabId);
+        
+        // Wait for content script injection
         await waitForContentScript();
         
-        // Setup event listeners FIRST (like your working version)
+        // Setup event listeners
         setupEventListeners({
             siteTranslated,
             isTranslating,
@@ -37,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             setIsTranslating: (value) => isTranslating = value
         });
 
-        // THEN initialize page state
+        // Initialize page state
         await initializePageState();
 
         console.log('Popup initialization complete');
@@ -104,9 +105,17 @@ async function initializePageState() {
         const languageResponse = await sendContentMessage(activeTabId, { action: 'dominantLanguage' });
         console.log('Language response received:', languageResponse);
 
+        
+
         if (languageResponse?.language) {
-            console.log(`Detected: ${languageResponse.language} (${languageResponse.confidence}% confidence)`);
-            hideMatchingLanguageOption(languageResponse.language);
+            try {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+                console.log(`Detected: ${languageResponse.language} (${languageResponse.confidence}% confidence)`);
+                hideMatchingLanguageOption(languageResponse.language, tab.id);
+            } catch (error) {
+                console.error('Failed in getting current tab:', error)
+            }
         }
         
     } catch (error) {
