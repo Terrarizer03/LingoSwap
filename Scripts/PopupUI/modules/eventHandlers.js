@@ -48,6 +48,7 @@ async function handleTranslate(state) {
     }
 
     const translateBtn = document.getElementById('translate-btn');
+    const loadingState = document.getElementById('loading-state');
 
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -66,7 +67,7 @@ async function handleTranslate(state) {
             return;
         }
 
-        addLoadingState(translateBtn, true);
+        addLoadingState(loadingState, true);
         state.setIsTranslating(true);
         translateBtn.disabled = true;
         translateBtn.textContent = "Translating...";
@@ -81,7 +82,7 @@ async function handleTranslate(state) {
         setTimeout(() => {
             if (state.isTranslating) {
                 resetTranslationUI(false);
-                addLoadingState(translateBtn, false);
+                addLoadingState(loadingState, false);
                 state.setIsTranslating(false);
             }
         }, 45000);
@@ -89,7 +90,7 @@ async function handleTranslate(state) {
     } catch (error) {
         console.error('Error:', error);
         resetTranslationUI(false);
-        addLoadingState(translateBtn, false);
+        addLoadingState(loadingState, false);
         state.setIsTranslating(false);
     }
 }

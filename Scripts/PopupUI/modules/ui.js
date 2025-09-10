@@ -39,11 +39,11 @@ function toggleDarkMode() {
     chrome.storage.local.set({ darkMode: isDark });
 }
 
-export function addLoadingState(button, state = false) {
+export function addLoadingState(object, state = false) {
     if (state) {
-        button.classList.add('loading');
+        object.classList.add('loading');
     } else {
-        button.classList.remove('loading');
+        object.classList.remove('loading');
     }
 }
 

@@ -107,13 +107,14 @@ async function initializePageState(tabId) {
         console.log('Translation status received:', translatingResponse);
 
         const translateBtn = document.getElementById('translate-btn');
+        const loadingState = document.getElementById('loading-state');
         if (translatingResponse?.translationStatus) {
             translateBtn.textContent = "Translating...";
-            addLoadingState(translateBtn, true);
+            addLoadingState(loadingState, true);
             setState({ isTranslating: true });
         } else {
             translateBtn.textContent = "Translate";
-            addLoadingState(translateBtn, false);
+            addLoadingState(loadingState, false);
             setState({ isTranslating: false });
         }
 

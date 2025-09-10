@@ -3,6 +3,7 @@ import { sendContentMessage } from "./messaging.js";
 import { addShakeAnimation, addLoadingState, resetTranslationUI, updateButtonState } from "./ui.js";
 import { setState } from "./state.js";
 
+const loadingState = document.getElementById('loading-state');
 
 export function handleTranslationComplete(message) {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -10,14 +11,14 @@ export function handleTranslationComplete(message) {
         
         setState({ siteTranslated: message.translationState });
         resetTranslationUI(true);
-        addLoadingState(document.getElementById('translate-btn'), false);
+        addLoadingState(loadingState, false);
         updateButtonState(true, 'TranslatedText');
     });
 }
 
 export function handleAPIKeyError() {
     const translateBtn = document.getElementById('translate-btn');
-    addLoadingState(translateBtn, false);
+    addLoadingState(loadingState, false);
     addShakeAnimation(translateBtn);
     translateBtn.textContent = "No API Key!";
     translateBtn.disabled = true;
@@ -35,7 +36,7 @@ export function handleReloading() {
         translatedTextFinished: 0
     });
     resetTranslationUI(false);
-    addLoadingState(document.getElementById('translate-btn'), false);
+    addLoadingState(loadingState, false);
     updateButtonState(false, 'TranslatedText');
 }
 
