@@ -72,7 +72,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
         switch (message.action) {
             case 'saveAPIKey':
-                return handleSaveAPIKey(message, sendResponse);
+                handleSaveAPIKey(message, sendResponse);
+                return true;
                 
             case 'performTranslation':
                 handlePerformTranslation(message, sender, sendResponse);

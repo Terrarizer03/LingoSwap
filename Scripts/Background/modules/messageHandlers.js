@@ -32,8 +32,6 @@ export async function handleSaveAPIKey(message, sendResponse) {
             message: 'Failed to save API key: ' + error.message
         });
     }
-
-    return true;
 }
 
 export async function handlePerformTranslation(message, sender, sendResponse) {
