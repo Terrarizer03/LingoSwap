@@ -12,11 +12,16 @@ export async function loadStoredSettings(tabId) {
                 document.getElementById('dark-mode-icon')?.classList.add('hidden');
             }
             
+            // Quick check if tabLang even exists (if not, save a new tabLang)
+            let selectedLanguage = result[tabLang]; 
+            if (!selectedLanguage) {
+                selectedLanguage = "English";
+                chrome.storage.local.set({[tabLang]: selectedLanguage});
+            }
+
             // Apply target language
             const targetLangSelect = document.getElementById('target-lang');
-            if (result[tabLang] && targetLangSelect) {
-                targetLangSelect.value = result[tabLang] || "English";
-            }
+            targetLangSelect.value = selectedLanguage;
             
             resolve(result);
         });

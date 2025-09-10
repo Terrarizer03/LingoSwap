@@ -8,7 +8,7 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 
 ## Version Status:
 
-![Version](https://img.shields.io/badge/Version-v0.5.9-orange) ![Status](https://img.shields.io/badge/Status-alpha-red) ![License](https://img.shields.io/badge/License-MIT-blue)
+![Version](https://img.shields.io/badge/Version-v0.6.0-orange) ![Status](https://img.shields.io/badge/Status-alpha-red) ![License](https://img.shields.io/badge/License-MIT-blue)
 
 > **This extension is currently in alpha and is purely experimental.** Expect bad code, bugs, and errors.
 
