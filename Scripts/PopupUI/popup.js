@@ -1,8 +1,8 @@
 /* =====================>>> MAIN ENTRY POINT <<<===================== */
-import { initializeUI, updateButtonState, addLoadingState, updateTranslationReport } from './modules/ui.js';
+import { initializeUI, updateButtonState, addLoadingState } from './modules/ui.js';
 import { getState, setState } from "./modules/state.js";
-import { handleToggleComplete, handleAPIKeyError, handleReloading, handleTranslationProgress, handleTranslationComplete } from './modules/messageHandler.js';
-import { sendContentMessage, sendRuntimeMessage } from './modules/messaging.js';
+import { handleToggleComplete, handleAPIKeyError, handleReloading, handleTranslationProgress, handleTranslationComplete, updateTranslationProgress } from './modules/messageHandler.js';
+import { sendContentMessage } from './modules/messaging.js';
 import { hideMatchingLanguageOption } from './modules/languageUtils.js';
 import { loadStoredSettings } from './modules/storage.js';
 import { setupEventListeners } from './modules/eventHandlers.js';
@@ -157,35 +157,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-async function updateTranslationProgress(tabId) {
-    const currentState = getState();
-    
-    if (currentState.siteTranslated) {
-        // Site is already translated, show completed state
-        console.log('Site already translated, showing completed state');
-        updateTranslationReport({ 
-            translated: currentState.translatedTextFinished, 
-            remaining: 0 
-        });
-        return;
-    }
-
-    // Site not translated, get current progress
-    try {
-        console.log('Getting translation progress...');
-        const translationProgress = await sendRuntimeMessage({ 
-            action: 'getTranslationProgress', 
-            tabId: tabId 
-        });
-        console.log('Translation progress received:', translationProgress);
-
-        if (translationProgress?.success && translationProgress.totalItems > 0) {
-            updateTranslationReport({ 
-                translated: translationProgress.translated, 
-                remaining: translationProgress.remaining 
-            });
-        }
-    } catch (error) {
-        console.error("Failed in getting translation progress", error);
-    }
-}

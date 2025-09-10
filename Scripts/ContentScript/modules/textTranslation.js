@@ -27,8 +27,8 @@ let translationState = 'RawText';
 let textStorage = null; // Will hold the storage object from domUtils
 let translatedTexts = [];
 
-// Enhanced translation function with error handling and state management (Entrance Point To Translation)
-async function testTranslation(tabId) {
+// Main entry point of translation
+async function testTranslation(tabId) { // It's called "testTranslation" because it used to just test translation with a custom text array, the name just stayed.
     console.log('Starting translation test...');
 
     // Check if already translated
@@ -40,7 +40,7 @@ async function testTranslation(tabId) {
     try {
         // Get elements and texts
         const elements = getFilteredTextElements(document.body);
-        const texts = elements.map(elem => elem.trimmedText); // Use trimmedText instead of processing again
+        const texts = elements.map(elem => elem.trimmedText); // Use the trimmed text
 
         if (texts.length === 0) {
             console.log('No texts found to translate');
@@ -88,11 +88,13 @@ async function testTranslation(tabId) {
 }
 
 function restoreTranslatedText() {
+    // Check for stored translated text
     if (translatedTexts.length === 0) {
         console.error('No translated text stored to restore.');
         return;
     }
 
+    // Check for text storage
     if (!textStorage || !textStorage.originalElements) {
         console.error('No original elements stored.');
         return;
@@ -108,6 +110,7 @@ function restoreTranslatedText() {
 }
 
 function restoreOriginalText() {
+    // Check for text storage
     if (!textStorage) {
         console.error('No text storage available to restore from.');
         return;
@@ -162,6 +165,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }   
 });
 
+// Entry function that start the translation process 
 async function handleTranslation(message, sendResponse) {
     activeTabId = message.tabId;
     console.log('Received request to get text nodes');
@@ -175,6 +179,7 @@ async function handleTranslation(message, sendResponse) {
     }
 }
 
+// Grabs site's most dominant language
 async function handleDominantLanguage(message, sendResponse) {
     try {
         const result = await getSiteLanguage(document.body);
@@ -191,13 +196,14 @@ async function handleDominantLanguage(message, sendResponse) {
     }
 }
 
+// Entry function for replacing text and translation states
 async function handleDOMupdates(message, sendResponse) {
     console.log('Received translated text from background');
     const translatedText = message.translatedText;
     textLength = message.textLength;
 
     try {
-        // Get the current elements (should match the ones we sent for translation)
+        // Get the current elements (should match the ones sent for translation)
         const elements = getFilteredTextElements(document.body);
         translatedTexts = translatedText;
         replaceWithTranslation(elements, translatedText);

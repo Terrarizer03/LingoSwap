@@ -92,7 +92,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return true;
 
             default:
-                // Handle unknown actions gracefully
+                // Handle unknown actions
                 console.warn(`Unknown action: ${message.action}`);
                 sendResponse({ 
                     success: false, 

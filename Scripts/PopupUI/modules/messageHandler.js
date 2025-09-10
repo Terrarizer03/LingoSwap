@@ -1,7 +1,7 @@
 /* =====================>>> MODULE FOR POPUP.JS <<<===================== */
 import { sendContentMessage } from "./messaging.js";
 import { addShakeAnimation, addLoadingState, resetTranslationUI, updateButtonState } from "./ui.js";
-import { setState } from "./state.js";
+import { setState, getState } from "./state.js";
 
 const loadingState = document.getElementById('loading-state');
 
@@ -67,4 +67,37 @@ export function handleTranslationProgress(message) {
         if (translatedDisplay) translatedDisplay.textContent = message.translated || 0;
         if (translatingDisplay) translatingDisplay.textContent = message.remaining || 0;
     });
+}
+
+export async function updateTranslationProgress(tabId) {
+    const currentState = getState();
+    
+    if (currentState.siteTranslated) {
+        // Site is already translated, show completed state
+        console.log('Site already translated, showing completed state');
+        updateTranslationReport({ 
+            translated: currentState.translatedTextFinished, 
+            remaining: 0 
+        });
+        return;
+    }
+
+    // Site not translated, get current progress
+    try {
+        console.log('Getting translation progress...');
+        const translationProgress = await sendRuntimeMessage({ 
+            action: 'getTranslationProgress', 
+            tabId: tabId 
+        });
+        console.log('Translation progress received:', translationProgress);
+
+        if (translationProgress?.success && translationProgress.totalItems > 0) {
+            updateTranslationReport({ 
+                translated: translationProgress.translated, 
+                remaining: translationProgress.remaining 
+            });
+        }
+    } catch (error) {
+        console.error("Failed in getting translation progress", error);
+    }
 }
