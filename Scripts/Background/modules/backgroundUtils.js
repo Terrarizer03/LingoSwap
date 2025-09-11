@@ -18,6 +18,12 @@ export async function getStorageData(keys) {
     });
 }
 
+export async function getSessionData(keys) {
+    return new Promise((resolve) => {
+        chrome.storage.session.get(keys, resolve);
+    });
+}
+
 // Helper function to set storage data
 export async function setStorageData(data) {
     return new Promise((resolve, reject) => {

@@ -1,35 +1,49 @@
 /* =====================>>> MODULE FOR POPUP.JS <<<===================== */
 
-export async function loadStoredSettings(tabId) {
-    const tabLang = `targetLang_${tabId}`
-    
+function getLocal(keys) {
     return new Promise((resolve) => {
-        chrome.storage.local.get(["darkMode", tabLang], (result) => {
-            // Apply dark mode
-            if (result.darkMode) {
-                document.body.classList.add('dark-mode');
-                document.getElementById('light-mode-icon')?.classList.remove('hidden');
-                document.getElementById('dark-mode-icon')?.classList.add('hidden');
-            }
-            
-            // Quick check if tabLang even exists (if not, save a new tabLang)
-            let selectedLanguage = result[tabLang]; 
-            if (!selectedLanguage) {
-                selectedLanguage = "English";
-                chrome.storage.local.set({[tabLang]: selectedLanguage});
-            }
+        chrome.storage.local.get(keys, resolve);
+    });
+} 
 
-            // Apply target language
-            const targetLangSelect = document.getElementById('target-lang');
-            targetLangSelect.value = selectedLanguage;
-            
-            resolve(result);
-        });
+function getSession(keys) {
+    return new Promise((resolve) => {
+        chrome.storage.session.get(keys, resolve);
     });
 }
 
+export async function loadStoredSettings(tabId) {
+    const tabLang = `targetLang_${tabId}`;
+
+    const local = await getLocal(["darkMode"]);
+    const session = await getSession([tabLang]);
+
+    // Apply dark mode
+    if (local.darkMode) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('light-mode-icon')?.classList.remove('hidden');
+        document.getElementById('dark-mode-icon')?.classList.add('hidden');
+    }
+
+    // Quick check if tabLang even exists (if not, save a new tabLang)
+    let selectedLanguage = session[tabLang];
+    if (!selectedLanguage) {
+        selectedLanguage = "English";
+        chrome.storage.session.set({[tabLang]: selectedLanguage});
+    }
+
+    const targetLangSelect = document.getElementById('target-lang');
+
+    // Apply target language
+    if (targetLangSelect) {
+        targetLangSelect.value = selectedLanguage;
+    }
+    
+    return { ...local, ...session };
+}
+
 export function saveTargetLanguage(targetLang, tabId) {
-    return chrome.storage.local.set({ [`targetLang_${tabId}`]: targetLang });
+    return chrome.storage.session.set({ [`targetLang_${tabId}`]: targetLang });
 }
 
 export function saveDarkMode(isDark) {
@@ -37,5 +51,5 @@ export function saveDarkMode(isDark) {
 }
 
 export function deleteTargetLanguage(tabId) {
-    chrome.storage.local.remove(`targetLang_${tabId}`);
+    chrome.storage.session.remove(`targetLang_${tabId}`);
 }

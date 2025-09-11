@@ -32,7 +32,7 @@ export async function hideMatchingLanguageOption(detectedLanguageCode, tabId) {
 
         if (foundMatch) {
             // Get user's preferred target language
-            const targetLang = await chrome.storage.local.get(`targetLang_${tabId}`);
+            const targetLang = await chrome.storage.session.get(`targetLang_${tabId}`);
             const tabLang = targetLang[`targetLang_${tabId}`];
 
             console.log(`Detected language: ${languageName}, User preference: ${tabLang}`);

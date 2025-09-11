@@ -3,7 +3,7 @@
 import { sendContentMessage } from '../../PopupUI/modules/messaging.js'
 import { performTranslation } from './textOutput.js'
 import { currentTranslationState, tabTranslationStates, tabAbortControllers } from './state.js'
-import { resetGlobalTranslationState, getStorageData, setStorageData, getCurrentTab, validateApiKey, sendProgressUpdate  } from './backgroundUtils.js';
+import { resetGlobalTranslationState, getStorageData, getSessionData, setStorageData, getCurrentTab, validateApiKey, sendProgressUpdate  } from './backgroundUtils.js';
 
 export async function handleSaveAPIKey(message, sendResponse) {
     try {
@@ -42,10 +42,13 @@ export async function handlePerformTranslation(message, sender, sendResponse) {
         const tabId = message.tabId;
         const tabLang = `targetLang_${tabId}`;
 
-        // Get required data from storage
-        const result = await getStorageData(['apiKey', tabLang]);
+        // Get apiKey data from storage
+        const result = await getStorageData(['apiKey']);
         const apiKey = result.apiKey || '';
-        const targetLang = result[tabLang];
+
+        // Get language from Session storage
+        const langResult = await getSessionData([tabLang])
+        const targetLang = langResult[tabLang];
         
         console.log('Translate requested for tab:', tabId, 'Language:', targetLang);
 

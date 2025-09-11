@@ -1,6 +1,6 @@
 /* =====================>>> MODULE FOR POPUP.JS <<<===================== */
-import { sendContentMessage } from "./messaging.js";
-import { addShakeAnimation, addLoadingState, resetTranslationUI, updateButtonState } from "./ui.js";
+import { sendContentMessage, sendRuntimeMessage } from "./messaging.js";
+import { addShakeAnimation, addLoadingState, resetTranslationUI, updateButtonState, updateTranslationReport } from "./ui.js";
 import { setState, getState } from "./state.js";
 
 const loadingState = document.getElementById('loading-state');

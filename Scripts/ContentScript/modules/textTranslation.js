@@ -196,7 +196,7 @@ async function handleDominantLanguage(message, sendResponse) {
     }
 }
 
-// Entry function for replacing text and translation states
+// Entry function for replacing text (also sends last bit of translation state)
 async function handleDOMupdates(message, sendResponse) {
     console.log('Received translated text from background');
     const translatedText = message.translatedText;
@@ -210,7 +210,7 @@ async function handleDOMupdates(message, sendResponse) {
         isTranslating = false;
         isTranslated = true;
         translationState = 'TranslatedText';
-        chrome.runtime.sendMessage({
+        chrome.runtime.sendMessage({ // no point in using sendRuntimeMessage() here cause it's the same length...
             action: 'translationComplete',
             tabId: activeTabId,
             translationState: isTranslated,
