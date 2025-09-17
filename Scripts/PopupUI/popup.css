@@ -135,6 +135,12 @@ body {
     align-items: center;
 }
 
+.left-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
 .input-container {
     display: flex;
     flex-direction: column;

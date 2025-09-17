@@ -1,7 +1,7 @@
 {
     "name": "LingoSwap",
     "description": "An extension that translates websites using AI.",
-    "version": "0.5.9",
+    "version": "0.6.0",
     "manifest_version": 3,
     "icons": {
         "16": "Assets/Images/icon16.png",
@@ -22,7 +22,7 @@
     },
     "content_scripts": [
         {
-            "js": ["Scripts/ContentScript/textTranslation.js"],
+            "js": ["Scripts/ContentScript/DOMextraction.js"],
             "matches": ["<all_urls>"]
         }
     ],
@@ -36,6 +36,7 @@
     ],
     "host_permissions": ["https://generativelanguage.googleapis.com/*"],
     "background": {
-        "service_worker": "Scripts/Background/apiCalls.js"
+        "service_worker": "Scripts/Background/apiCalls.js",
+        "type": "module"
     }
 }

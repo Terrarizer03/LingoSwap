@@ -1,14 +1,14 @@
 # LingoSwap (Chrome Extension)
 
 <div style="text-align: center;">
-  <img src="Assets/Images/READMEimages/LingoSwapBanner.png" alt="LingoSwapBanner" width="600"/>
+  <img src="Assets/Images/READMEimages/LingoSwapBanner.png" alt="LingoSwapBanner" width="850"/>
 </div>
 
 An AI-based Chrome Extension that **translates full websites** using Google’s Gemini LLM — while preserving **tone**, **structure**, and **context** far better than traditional machine translators. Created for novel readers, journalists, student researchers, and practically anyone in need of better and more accurate translation quality on websites.
 
 ## Version Status:
 
-![Version](https://img.shields.io/badge/version-v0.5.9-orange) ![Status](https://img.shields.io/badge/status-alpha-red) ![License](https://img.shields.io/badge/license-MIT-blue)
+![Version](https://img.shields.io/badge/Version-v0.6.0-orange) ![Status](https://img.shields.io/badge/Status-alpha-red) ![License](https://img.shields.io/badge/License-MIT-blue)
 
 > **This extension is currently in alpha and is purely experimental.** Expect bad code, bugs, and errors.
 
@@ -28,8 +28,6 @@ An AI-based Chrome Extension that **translates full websites** using Google’s 
 - **AI Related Issues** – The AI itself could return unexpected outputs causing errors in translation.
 
 ## Planned Updates & Future Improvements:
-
-**LingoSwap v1.0.0** | Planned Updates/Improvements:
 
 - **Smarter Chunk Prompts** – Chaining memory on chunks by asking for a chunk summary at the end of each output and injecting that summary into the start of the next chunk prompt.
 - **Lazy Tab Loading** – Translating only on-screen/can be seen text elements to reduce API calls and improve latency.
