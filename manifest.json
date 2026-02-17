@@ -1,0 +1,42 @@
+{
+    "name": "LingoSwap",
+    "description": "An extension that translates websites using AI.",
+    "version": "0.6.0",
+    "manifest_version": 3,
+    "icons": {
+        "16": "Assets/Images/icon16.png",
+        "32": "Assets/Images/icon32.png",
+        "48": "Assets/Images/icon48.png",
+        "128": "Assets/Images/icon128.png",
+        "256": "Assets/Images/icon256.png"
+    },
+    "action": {
+        "default_popup": "Scripts/PopupUI/popup.html",
+        "default_icon": {
+            "16": "Assets/Images/icon16.png",
+            "32": "Assets/Images/icon32.png",
+            "48": "Assets/Images/icon48.png",
+            "128": "Assets/Images/icon128.png",
+            "256": "Assets/Images/icon256.png"
+        }
+    },
+    "content_scripts": [
+        {
+            "js": ["Scripts/ContentScript/DOMextraction.js"],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self';"
+    },
+    "permissions": [
+        "activeTab",
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": ["https://generativelanguage.googleapis.com/*"],
+    "background": {
+        "service_worker": "Scripts/Background/apiCalls.js",
+        "type": "module"
+    }
+}
